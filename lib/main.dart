@@ -406,6 +406,7 @@ class RequestHistoryPage extends StatelessWidget {
 
 
 class AdminDashboardPage extends StatefulWidget {
+  static const navy = Color(0xff12345a);
   const AdminDashboardPage({super.key});
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
