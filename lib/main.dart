@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -94,12 +96,54 @@ class _LegalExpartAppState extends State<LegalExpartApp> {
               )));
             }
             final role = roleSnapshot.data?.data()?['role'] ?? 'customer';
-            return role == 'admin'
+            // Windows build is admin-only; mobile build is customer-only.
+            if (Platform.isWindows && role != 'admin') {
+              return RoleAccessDeniedPage(
+                hindi: hindi,
+                message: 'यह Windows Admin App है। केवल Admin account से login करें।',
+              );
+            }
+            if (!Platform.isWindows && role == 'admin') {
+              return RoleAccessDeniedPage(
+                hindi: hindi,
+                message: 'Admin account केवल Windows Admin App में इस्तेमाल करें।',
+              );
+            }
+            return Platform.isWindows
               ? const AdminDashboardPage()
               : DashboardPage(hindi: hindi, toggle: () => setState(() => hindi = !hindi));
           },
         );
       },
+    ),
+  );
+}
+
+class RoleAccessDeniedPage extends StatelessWidget {
+  final bool hindi;
+  final String message;
+  const RoleAccessDeniedPage({super.key, required this.hindi, required this.message});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.block, size: 64, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            Text(message, textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: () async => FirebaseAuth.instance.signOut(),
+              child: Text(tr(hindi, 'Back to Login', 'लॉगिन पर वापस जाएँ')),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }
@@ -121,9 +165,18 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final c = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.text.trim(), password: password.text);
-      // Let the authenticated Firestore role decide which dashboard opens.
-      // Do not sign the user out merely because the Admin/Customer selector differs.
-      await FirebaseFirestore.instance.collection('users').doc(c.user!.uid).get();
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(c.user!.uid).get();
+      final role = userDoc.data()?['role'] ?? 'customer';
+      final allowed = Platform.isWindows ? role == 'admin' : role != 'admin';
+      if (!allowed) {
+        await FirebaseAuth.instance.signOut();
+        setState(() {
+          error = Platform.isWindows
+              ? tr(widget.hindi, 'Access denied: this Windows app is for Admin accounts only.', 'प्रवेश अस्वीकृत: यह Windows ऐप केवल Admin account के लिए है।')
+              : tr(widget.hindi, 'Admin accounts can only use the Windows Admin app.', 'Admin account केवल Windows Admin App में इस्तेमाल करें।');
+        });
+        return;
+      }
     } on FirebaseAuthException catch (e) {
       error = e.message ?? tr(widget.hindi, 'Login failed.', 'लॉगिन नहीं हो सका।');
     } catch (e) {
@@ -176,14 +229,18 @@ class _LoginPageState extends State<LoginPage> {
           Text(tr(widget.hindi, 'Welcome back', 'आपका स्वागत है'),
             style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          SegmentedButton<bool>(
-            segments: [
-              ButtonSegment(value: false, label: Text(tr(widget.hindi, 'Customer', 'ग्राहक')),
-                icon: const Icon(Icons.person_outline)),
-              ButtonSegment(value: true, label: Text(tr(widget.hindi, 'Admin', 'एडमिन')),
-                icon: const Icon(Icons.admin_panel_settings_outlined)),
-            ],
-            selected: {admin}, onSelectionChanged: (s) => setState(() => admin = s.first)),
+          if (Platform.isWindows)
+            Text(
+              tr(widget.hindi, 'Windows Admin Login', 'Windows Admin लॉगिन'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff12345a)),
+            )
+          else
+            Text(
+              tr(widget.hindi, 'Customer Login', 'ग्राहक लॉगिन'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff12345a)),
+            ),
           const SizedBox(height: 16),
           TextField(controller: email, keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(labelText: tr(widget.hindi, 'Email', 'ईमेल'),
@@ -198,7 +255,7 @@ class _LoginPageState extends State<LoginPage> {
           FilledButton(onPressed: busy ? null : signIn,
             child: Padding(padding: const EdgeInsets.all(12), child: Text(
               busy ? tr(widget.hindi, 'Please wait…', 'कृपया प्रतीक्षा करें…') : tr(widget.hindi, 'Login', 'लॉगिन')))),
-          if (!admin) OutlinedButton(onPressed: busy ? null : register,
+          if (!Platform.isWindows) OutlinedButton(onPressed: busy ? null : register,
             child: Text(tr(widget.hindi, 'Create customer account', 'ग्राहक अकाउंट बनाएँ'))),
           const SizedBox(height: 14),
           Text(tr(widget.hindi,
