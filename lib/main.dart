@@ -6,14 +6,51 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: const FirebaseOptions(
-    apiKey: 'AIzaSyBzrEVPxAlOkcWrbUk2VDujMY7P0BXJG_M',
-    appId: '1:760036617793:android:9731134752d8ff02a960c0',
-    messagingSenderId: '760036617793',
-    projectId: 'legal-expart',
-    storageBucket: 'legal-expart.firebasestorage.app',
-  ));
-  runApp(const LegalExpartApp());
+  Object? startupError;
+  try {
+    await Firebase.initializeApp(options: const FirebaseOptions(
+      apiKey: 'AIzaSyBzrEVPxAlOkcWrbUk2VDujMY7P0BXJG_M',
+      appId: '1:760036617793:android:9731134752d8ff02a960c0',
+      messagingSenderId: '760036617793',
+      projectId: 'legal-expart',
+      storageBucket: 'legal-expart.firebasestorage.app',
+    )).timeout(const Duration(seconds: 12));
+  } catch (e) {
+    startupError = e;
+  }
+  runApp(startupError == null
+      ? const LegalExpartApp()
+      : StartupFailureApp(error: startupError.toString()));
+}
+
+class StartupFailureApp extends StatelessWidget {
+  final String error;
+  const StartupFailureApp({super.key, required this.error});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    title: 'Legal Expart',
+    theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff12345a))),
+    home: Scaffold(
+      backgroundColor: const Color(0xfff5f8fc),
+      body: SafeArea(child: Center(child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(height: 150, child: SvgPicture.asset('assets/legal_expart_logo.svg')),
+          const SizedBox(height: 18),
+          const Text('Legal Expart', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Color(0xff12345a))),
+          const SizedBox(height: 12),
+          const Text('App could not connect to Firebase. Please check your app configuration and internet connection.',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
+          const SizedBox(height: 16),
+          const Text('ऐप Firebase से कनेक्ट नहीं हो पाया। इंटरनेट और Firebase configuration जाँचें।',
+            textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          SelectableText(error, style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+        ]),
+      ))),
+    ),
+  );
 }
 
 String tr(bool hi, String en, String hn) => hi ? hn : en;
