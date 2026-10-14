@@ -1,10 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<rect width="512" height="512" rx="96" fill="#102b4e"/>
-<path d="M256 48 L378 94 L378 230 Q365 326 256 382 Q147 326 134 230 L134 94 Z" fill="none" stroke="#e7bd55" stroke-width="15"/>
-<path d="M226 142 L226 260 M286 142 L286 260 M208 155 L304 155 M207 260 L305 260" fill="none" stroke="#f8f5ed" stroke-width="13" stroke-linecap="round"/>
-<path d="M256 110 L256 90 M256 110 L241 126 M256 110 L271 126" fill="none" stroke="#e7bd55" stroke-width="12" stroke-linecap="round"/>
-<path d="M207 174 L169 174 L151 214 Q169 237 187 214 Z M305 174 L343 174 L361 214 Q343 237 325 214 Z" fill="none" stroke="#e7bd55" stroke-width="8" stroke-linejoin="round"/>
-<path d="M169 174 L169 150 M343 174 L343 150" stroke="#e7bd55" stroke-width="7"/>
-<text x="256" y="435" text-anchor="middle" font-family="Arial,sans-serif" font-size="42" font-weight="700" fill="#ffffff">LEGAL EXPART</text>
-<text x="256" y="469" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" fill="#e7bd55">YOUR LEGAL PARTNER, ALWAYS</text>
+<rect width="512" height="512" rx="52" fill="#ffffff"/>
+<g fill="#102b4e">
+  <path d="M166 155h64v24h-18v119h-27V179h-19z"/>
+  <path d="M237 155h28v143h-28z"/>
+  <path d="M272 155h74v24h-46v35h39v24h-39v36h47v24h-75z"/>
+  <path d="M150 273h214v17H150z"/>
+</g>
+<g fill="none" stroke="#102b4e" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M106 218h42l-21 45z M127 218v-20 M106 218l-16 43h74l-16-43"/>
+  <path d="M364 218h42l-21 45z M385 218v-20 M364 218l-16 43h74l-16-43"/>
+  <path d="M127 198h-18 M385 198h18"/>
+</g>
+<path d="M255 145c-26-27 9-45 12-76 25 22 31 42 12 65-6 7-14 11-24 11z" fill="#f3b437"/>
+<path d="M257 145c-4-19 15-27 18-42 15 22 2 39-18 42z" fill="#ffd36b"/>
+<text x="256" y="354" text-anchor="middle" font-family="Arial,sans-serif" font-size="40" font-weight="800" fill="#102b4e">Legal <tspan fill="#1268df">Expart</tspan></text>
+<text x="256" y="388" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" fill="#465a72">Your Legal Partner, Always</text>
 </svg>
