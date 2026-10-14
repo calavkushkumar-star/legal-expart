@@ -170,12 +170,9 @@ class _LoginPageState extends State<LoginPage> {
       final allowed = Platform.isWindows ? role == 'admin' : role != 'admin';
       if (!allowed) {
         await FirebaseAuth.instance.signOut();
-        setState(() {
-          error = Platform.isWindows
-              ? tr(widget.hindi, 'Access denied: this Windows app is for Admin accounts only.', 'प्रवेश अस्वीकृत: यह Windows ऐप केवल Admin account के लिए है।')
-              : tr(widget.hindi, 'Admin accounts can only use the Windows Admin app.', 'Admin account केवल Windows Admin App में इस्तेमाल करें।');
-        });
-        return;
+        throw Exception(Platform.isWindows
+            ? tr(widget.hindi, 'Access denied: this Windows app is for Admin accounts only.', 'प्रवेश अस्वीकृत: यह Windows ऐप केवल Admin account के लिए है।')
+            : tr(widget.hindi, 'Admin accounts can only use the Windows Admin app.', 'Admin account केवल Windows Admin App में इस्तेमाल करें।'));
       }
     } on FirebaseAuthException catch (e) {
       error = e.message ?? tr(widget.hindi, 'Login failed.', 'लॉगिन नहीं हो सका।');
