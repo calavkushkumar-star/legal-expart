@@ -1,18 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<rect width="512" height="512" rx="52" fill="#ffffff"/>
-<g fill="#102b4e">
-  <path d="M166 155h64v24h-18v119h-27V179h-19z"/>
-  <path d="M237 155h28v143h-28z"/>
-  <path d="M272 155h74v24h-46v35h39v24h-39v36h47v24h-75z"/>
-  <path d="M150 273h214v17H150z"/>
-</g>
-<g fill="none" stroke="#102b4e" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M106 218h42l-21 45z M127 218v-20 M106 218l-16 43h74l-16-43"/>
-  <path d="M364 218h42l-21 45z M385 218v-20 M364 218l-16 43h74l-16-43"/>
-  <path d="M127 198h-18 M385 198h18"/>
-</g>
-<path d="M255 145c-26-27 9-45 12-76 25 22 31 42 12 65-6 7-14 11-24 11z" fill="#f3b437"/>
-<path d="M257 145c-4-19 15-27 18-42 15 22 2 39-18 42z" fill="#ffd36b"/>
-<text x="256" y="354" text-anchor="middle" font-family="Arial,sans-serif" font-size="40" font-weight="800" fill="#102b4e">Legal <tspan fill="#1268df">Expart</tspan></text>
-<text x="256" y="388" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" fill="#465a72">Your Legal Partner, Always</text>
+  <rect width="512" height="512" rx="56" fill="#ffffff"/>
+  <defs>
+    <linearGradient id="flame" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd45b"/>
+      <stop offset="1" stop-color="#e99b18"/>
+    </linearGradient>
+  </defs>
+  <!-- Gold legal flame -->
+  <path d="M254 48c7 23-2 37-17 52-12 12-17 24-10 40 4 10 14 16 27 16 28 0 45-21 42-46-2-18-14-31-21-47-3 18-13 28-21 35 4-19 2-34 0-50z" fill="url(#flame)"/>
+  <path d="M253 112c-11 13-16 21-11 31 3 7 9 10 16 10 13 0 21-10 20-22-1-8-6-15-11-21-1 10-6 17-14 22 3-8 2-14 0-20z" fill="#fff0ae"/>
+  <!-- Elegant LE monogram -->
+  <text x="255" y="282" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="192" font-weight="700" fill="#102d50" letter-spacing="-16">LE</text>
+  <path d="M178 285h156" stroke="#102d50" stroke-width="7" stroke-linecap="round"/>
+  <!-- Left balance scale -->
+  <g fill="none" stroke="#102d50" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M112 180v84 M88 195h48 M112 180l-24 15 M112 180l24 15"/>
+    <path d="M88 195l-18 39h36z M136 195l-18 39h36z"/>
+    <path d="M70 234q18 16 36 0 M118 234q18 16 36 0"/>
+    <path d="M78 252h52"/>
+  </g>
+  <!-- Right balance scale -->
+  <g fill="none" stroke="#102d50" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M400 180v84 M376 195h48 M400 180l-24 15 M400 180l24 15"/>
+    <path d="M376 195l-18 39h36z M424 195l-18 39h36z"/>
+    <path d="M358 234q18 16 36 0 M406 234q18 16 36 0"/>
+    <path d="M366 252h52"/>
+  </g>
+  <text x="256" y="354" text-anchor="middle" font-family="Arial,sans-serif" font-size="45" font-weight="800" fill="#102d50">Legal <tspan fill="#1268df">Expart</tspan></text>
+  <text x="256" y="390" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" fill="#435873">Your Legal Partner, Always</text>
 </svg>
