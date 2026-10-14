@@ -77,9 +77,28 @@ class _LegalExpartAppState extends State<LegalExpartApp> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return snapshot.data == null
-          ? LoginPage(hindi: hindi, toggle: () => setState(() => hindi = !hindi))
-          : DashboardPage(hindi: hindi, toggle: () => setState(() => hindi = !hindi));
+        final user = snapshot.data;
+        if (user == null) {
+          return LoginPage(hindi: hindi, toggle: () => setState(() => hindi = !hindi));
+        }
+        return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+          builder: (context, roleSnapshot) {
+            if (roleSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            }
+            if (roleSnapshot.hasError) {
+              return const Scaffold(body: Center(child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Could not verify account role. Please check internet and Firestore rules.'),
+              )));
+            }
+            final role = roleSnapshot.data?.data()?['role'] ?? 'customer';
+            return role == 'admin'
+              ? const AdminDashboardPage()
+              : DashboardPage(hindi: hindi, toggle: () => setState(() => hindi = !hindi));
+          },
+        );
       },
     ),
   );
@@ -328,6 +347,131 @@ class RequestHistoryPage extends StatelessWidget {
         ),
     );
   }
+}
+
+
+class AdminDashboardPage extends StatelessWidget {
+  const AdminDashboardPage({super.key});
+  static const navy = Color(0xff12345a);
+  static const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+
+  Future<void> _setStatus(BuildContext context, String id, String status) async {
+    try {
+      await FirebaseFirestore.instance.collection('serviceRequests').doc(id).update({
+        'status': status, 'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Status updated: $status')));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not update status. Check admin role and Firestore rules.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    return Scaffold(
+      appBar: AppBar(backgroundColor: navy, foregroundColor: Colors.white,
+        title: const Row(children: [Icon(Icons.admin_panel_settings, size: 28), SizedBox(width: 10), Text('Legal Expart | Admin')]),
+        actions: [
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Center(child: Text(user?.email ?? 'Admin', style: const TextStyle(fontSize: 12)))),
+          IconButton(tooltip: 'Logout', onPressed: () => FirebaseAuth.instance.signOut(), icon: const Icon(Icons.logout)),
+        ]),
+      body: LayoutBuilder(builder: (context, constraints) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Admin Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: navy)),
+          const SizedBox(height: 6),
+          const Text('Manage customer service requests and consultation bookings.'),
+          const SizedBox(height: 18),
+          Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('serviceRequests').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return const Center(child: Text('Unable to load requests. Verify the admin role and Firestore Security Rules.'));
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs.toList()..sort((a, b) {
+                final av = a.data()['createdAt']; final bv = b.data()['createdAt'];
+                final am = av is Timestamp ? av.millisecondsSinceEpoch : 0;
+                final bm = bv is Timestamp ? bv.millisecondsSinceEpoch : 0;
+                return bm.compareTo(am);
+              });
+              final pending = docs.where((d) => (d.data()['status'] ?? 'Pending') == 'Pending').length;
+              final active = docs.where((d) => (d.data()['status'] ?? '') == 'In Progress').length;
+              final completed = docs.where((d) => (d.data()['status'] ?? '') == 'Completed').length;
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Wrap(spacing: 12, runSpacing: 12, children: [
+                  _AdminMetric(title: 'Total Requests', value: '\${docs.length}', icon: Icons.inbox_outlined),
+                  _AdminMetric(title: 'Pending', value: '\${pending}', icon: Icons.pending_actions),
+                  _AdminMetric(title: 'In Progress', value: '\${active}', icon: Icons.autorenew),
+                  _AdminMetric(title: 'Completed', value: '\${completed}', icon: Icons.task_alt),
+                ]),
+                const SizedBox(height: 18),
+                const Text('Customer Requests', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Expanded(child: docs.isEmpty
+                  ? const Center(child: Text('No service requests have been submitted yet.'))
+                  : ListView.separated(
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final doc = docs[index]; final data = doc.data();
+                      final status = (data['status'] ?? 'Pending').toString();
+                      final created = data['createdAt'];
+                      final dateText = created is Timestamp ? MaterialLocalizations.of(context).formatShortDate(created.toDate()) : 'Date unavailable';
+                      final service = (data['service'] ?? 'Service request').toString();
+                      final email = (data['email'] ?? data['customerEmail'] ?? '').toString();
+                      final note = (data['note'] ?? data['message'] ?? '').toString();
+                      return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            const CircleAvatar(backgroundColor: Color(0xffeaf1fb), child: Icon(Icons.assignment_outlined, color: navy)),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(service, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text(dateText, style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+                            ])),
+                            PopupMenuButton<String>(
+                              tooltip: 'Update status',
+                              initialValue: statuses.contains(status) ? status : 'Pending',
+                              onSelected: (v) => _setStatus(context, doc.id, v),
+                              itemBuilder: (_) => statuses.map((s) => PopupMenuItem(value: s, child: Text(s))).toList(),
+                              child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(color: status == 'Completed' ? const Color(0xffd9f4df) : const Color(0xfffff0cc), borderRadius: BorderRadius.circular(18)),
+                                child: Text(status, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                            ),
+                          ]),
+                          if (email.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 10), child: Text('Customer: $email')),
+                          if (note.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Details: $note')),
+                          if (data['uid'] != null) Padding(padding: const EdgeInsets.only(top: 5), child: Text('Customer UID: \${data['uid']}', style: const TextStyle(color: Colors.blueGrey, fontSize: 11))),
+                        ],
+                      )));
+                    },
+                  )),
+              ]);
+            },
+          )),
+        ]),
+      )),
+    );
+  }
+}
+
+class _AdminMetric extends StatelessWidget {
+  final String title; final String value; final IconData icon;
+  const _AdminMetric({required this.title, required this.value, required this.icon});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 205, padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xffe0e8f2))),
+    child: Row(children: [
+      CircleAvatar(backgroundColor: const Color(0xffeaf1fb), child: Icon(icon, color: AdminDashboardPage.navy)),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AdminDashboardPage.navy)),
+        Text(title, style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+      ])),
+    ]),
+  );
 }
 
 class DashboardPage extends StatelessWidget {
