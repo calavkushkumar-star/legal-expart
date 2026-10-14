@@ -196,6 +196,140 @@ class _LoginPageState extends State<LoginPage> {
   );
 }
 
+
+class MyProfilePage extends StatelessWidget {
+  final bool hindi;
+  const MyProfilePage({super.key, required this.hindi});
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final name = (user?.displayName?.trim().isNotEmpty ?? false) ? user!.displayName! : (user?.email?.split('@').first ?? tr(hindi, 'Customer', 'ग्राहक'));
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(hindi, 'My Profile', 'मेरी प्रोफ़ाइल'))),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Container(padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: const Color(0xff12345a), borderRadius: BorderRadius.circular(20)),
+          child: Row(children: [
+            const CircleAvatar(radius: 32, backgroundColor: Colors.white, child: Icon(Icons.person, size: 38, color: Color(0xff12345a))),
+            const SizedBox(width: 16),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              Text(user?.email ?? '', style: const TextStyle(color: Colors.white70)),
+              const SizedBox(height: 8),
+              Text(tr(hindi, 'Customer Account', 'ग्राहक अकाउंट'), style: const TextStyle(color: Color(0xffffd36b), fontSize: 12)),
+            ])),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        Text(tr(hindi, 'Your Activity', 'आपकी गतिविधियाँ'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        _ProfileAction(icon: Icons.history, title: tr(hindi, 'Booking History', 'बुकिंग हिस्ट्री'),
+          subtitle: tr(hindi, 'View your service requests and status', 'अपनी सर्विस रिक्वेस्ट और स्टेटस देखें'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestHistoryPage(hindi: hindi, consultationsOnly: false)))),
+        _ProfileAction(icon: Icons.gavel, title: tr(hindi, 'Consultation History', 'कंसल्टिंग हिस्ट्री'),
+          subtitle: tr(hindi, 'Your legal consultation requests', 'आपकी कानूनी सलाह की रिक्वेस्ट'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestHistoryPage(hindi: hindi, consultationsOnly: true)))),
+        _ProfileAction(icon: Icons.folder_open_outlined, title: tr(hindi, 'Documents', 'दस्तावेज़'),
+          subtitle: tr(hindi, 'Documents related to your requests', 'आपकी रिक्वेस्ट से जुड़े दस्तावेज़'),
+          onTap: () => showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+            title: Text(tr(hindi, 'Documents', 'दस्तावेज़')),
+            content: Text(tr(hindi, 'Document upload/download needs storage configuration.', 'दस्तावेज़ अपलोड/डाउनलोड के लिए स्टोरेज कॉन्फ़िगरेशन ज़रूरी है।')),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          ))),
+        _ProfileAction(icon: Icons.person_outline, title: tr(hindi, 'Account Details', 'अकाउंट विवरण'),
+          subtitle: user?.email ?? '',
+          onTap: () => showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+            title: Text(tr(hindi, 'Account Details', 'अकाउंट विवरण')),
+            content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(hindi, 'Name', 'नाम') + ': ' + name),
+              const SizedBox(height: 8),
+              SelectableText(user?.email ?? ''),
+            ]),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr(hindi, 'Close', 'बंद करें')))],
+          ))),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(onPressed: () async {
+          await FirebaseAuth.instance.signOut();
+          if (context.mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+        }, icon: const Icon(Icons.logout), label: Text(tr(hindi, 'Logout', 'लॉग आउट'))),
+      ]),
+    );
+  }
+}
+class _ProfileAction extends StatelessWidget {
+  final IconData icon; final String title; final String subtitle; final VoidCallback onTap;
+  const _ProfileAction({required this.icon, required this.title, required this.subtitle, required this.onTap});
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.symmetric(vertical: 5),
+    child: ListTile(
+      leading: CircleAvatar(backgroundColor: const Color(0xffeaf1fb), child: Icon(icon, color: const Color(0xff12345a))),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: const Icon(Icons.chevron_right), onTap: onTap,
+    ),
+  );
+}
+class RequestHistoryPage extends StatelessWidget {
+  final bool hindi; final bool consultationsOnly;
+  const RequestHistoryPage({super.key, required this.hindi, required this.consultationsOnly});
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    return Scaffold(
+      appBar: AppBar(title: Text(consultationsOnly ? tr(hindi, 'Consultation History', 'कंसल्टिंग हिस्ट्री') : tr(hindi, 'Booking History', 'बुकिंग हिस्ट्री'))),
+      body: user == null
+        ? Center(child: Text(tr(hindi, 'Please log in again.', 'कृपया दोबारा लॉगिन करें।')))
+        : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance.collection('serviceRequests').where('uid', isEqualTo: user.uid).snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(20),
+              child: Text(tr(hindi, 'Could not load history. Check Firestore rules and connection.', 'हिस्ट्री लोड नहीं हो सकी। Firestore rules और इंटरनेट कनेक्शन जाँचें।'))));
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            final docs = snapshot.data!.docs.where((doc) {
+              final service = (doc.data()['service'] ?? '').toString().toLowerCase();
+              final isConsultation = service.contains('consultation') || service.contains('सलाह');
+              return consultationsOnly ? isConsultation : true;
+            }).toList()..sort((a, b) {
+              final av = a.data()['createdAt']; final bv = b.data()['createdAt'];
+              final am = av is Timestamp ? av.millisecondsSinceEpoch : 0;
+              final bm = bv is Timestamp ? bv.millisecondsSinceEpoch : 0;
+              return bm.compareTo(am);
+            });
+            if (docs.isEmpty) return Center(child: Padding(padding: const EdgeInsets.all(28),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(consultationsOnly ? Icons.gavel : Icons.history, size: 56, color: Colors.blueGrey.shade300),
+                const SizedBox(height: 12),
+                Text(consultationsOnly ? tr(hindi, 'No consultation history yet.', 'अभी कोई कंसल्टिंग हिस्ट्री नहीं है।') : tr(hindi, 'No bookings yet.', 'अभी कोई बुकिंग नहीं है।'),
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Text(tr(hindi, 'Your submitted requests will appear here.', 'आपकी भेजी गई रिक्वेस्ट यहाँ दिखाई देंगी।'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.blueGrey)),
+              ])));
+            return ListView.builder(padding: const EdgeInsets.all(12), itemCount: docs.length, itemBuilder: (context, index) {
+              final data = docs[index].data();
+              final status = (data['status'] ?? 'Pending').toString();
+              final note = (data['note'] ?? '').toString();
+              final createdAt = data['createdAt'];
+              final dateText = createdAt is Timestamp ? MaterialLocalizations.of(context).formatShortDate(createdAt.toDate()) : tr(hindi, 'Date pending', 'तारीख उपलब्ध नहीं');
+              final dateLabel = tr(hindi, 'Date', 'तारीख');
+              final noteText = note.isEmpty ? '' : '\n' + note;
+              return Card(margin: const EdgeInsets.symmetric(vertical: 6), child: ListTile(
+                leading: CircleAvatar(backgroundColor: const Color(0xffeaf1fb), child: Icon(consultationsOnly ? Icons.gavel : Icons.assignment_outlined, color: const Color(0xff12345a))),
+                title: Text((data['service'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text(dateLabel + ': ' + dateText + noteText)),
+                trailing: Container(constraints: const BoxConstraints(maxWidth: 100), padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  decoration: BoxDecoration(color: status == 'Completed' ? const Color(0xffd9f4df) : const Color(0xfffff0cc), borderRadius: BorderRadius.circular(20)),
+                  child: Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: status == 'Completed' ? const Color(0xff18763a) : const Color(0xff805800))),
+                ),
+              ));
+            });
+          },
+        ),
+    );
+  }
+}
+
 class DashboardPage extends StatelessWidget {
   final bool hindi;
   final VoidCallback toggle;
@@ -245,11 +379,22 @@ class DashboardPage extends StatelessWidget {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Legal Expart', style: TextStyle(fontWeight: FontWeight.bold)),
+    appBar: AppBar(
+      leading: Padding(
+        padding: const EdgeInsets.all(8),
+        child: IconButton(
+          tooltip: tr(hindi, 'My Profile', 'मेरी प्रोफ़ाइल'),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MyProfilePage(hindi: hindi))),
+          icon: const CircleAvatar(backgroundColor: Color(0xffeaf1fb),
+            child: Icon(Icons.person_outline, color: Color(0xff12345a))),
+        ),
+      ),
+      title: const Text('Legal Expart', style: TextStyle(fontWeight: FontWeight.bold)),
       actions: [
         TextButton(onPressed: toggle, child: Text(hindi ? 'English' : 'हिंदी')),
         IconButton(onPressed: () => FirebaseAuth.instance.signOut(), icon: const Icon(Icons.logout)),
-      ]),
+      ],
+    ),
     body: FutureBuilder<bool>(future: isAdmin(), builder: (context, roleSnap) {
       final admin = roleSnap.data == true;
       return ListView(padding: const EdgeInsets.all(16), children: [
