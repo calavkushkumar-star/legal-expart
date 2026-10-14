@@ -95,12 +95,17 @@ class _LegalExpartAppState extends State<LegalExpartApp> {
                 child: Text('Could not verify account role. Please check internet and Firestore rules.'),
               )));
             }
-            final role = roleSnapshot.data?.data()?['role'] ?? 'customer';
-            // Windows build is admin-only; mobile build is customer-only.
+            final profile = roleSnapshot.data?.data();
+            final role = profile?['role']?.toString().trim().toLowerCase();
+            // Never silently treat a missing profile as a customer/admin.
+            // Show the exact UID and detected role to help correct Firestore setup.
             if (Platform.isWindows && role != 'admin') {
+              final detail = profile == null
+                  ? 'Firestore में lowercase users collection के अंदर इस UID का document नहीं मिला।'
+                  : 'इस UID का role = "${role ?? 'missing'}" मिला; role की value admin होनी चाहिए।';
               return RoleAccessDeniedPage(
                 hindi: hindi,
-                message: 'यह Windows Admin App है। केवल Admin account से login करें।',
+                message: 'यह Windows Admin App है।\n$detail\nUID: ${user.uid}',
               );
             }
             if (!Platform.isWindows && role == 'admin') {
