@@ -121,13 +121,9 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final c = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.text.trim(), password: password.text);
-      final doc = await FirebaseFirestore.instance.collection('users').doc(c.user!.uid).get();
-      final role = doc.data()?['role'] ?? 'customer';
-      if ((admin && role != 'admin') || (!admin && role != 'customer')) {
-        await FirebaseAuth.instance.signOut();
-        throw Exception(tr(widget.hindi, 'This account does not have the selected role.',
-          'इस खाते के पास चुनी गई भूमिका की अनुमति नहीं है।'));
-      }
+      // Let the authenticated Firestore role decide which dashboard opens.
+      // Do not sign the user out merely because the Admin/Customer selector differs.
+      await FirebaseFirestore.instance.collection('users').doc(c.user!.uid).get();
     } on FirebaseAuthException catch (e) {
       error = e.message ?? tr(widget.hindi, 'Login failed.', 'लॉगिन नहीं हो सका।');
     } catch (e) {
