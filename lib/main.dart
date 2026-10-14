@@ -2,10 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: const FirebaseOptions(
+    apiKey: 'AIzaSyBzrEVPxAlOkcWrbUk2VDujMY7P0BXJG_M',
+    appId: '1:760036617793:android:9731134752d8ff02a960c0',
+    messagingSenderId: '760036617793',
+    projectId: 'legal-expart',
+    storageBucket: 'legal-expart.firebasestorage.app',
+  ));
   runApp(const LegalExpartApp());
 }
 
@@ -107,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Icon(Icons.account_balance_rounded, size: 82, color: Color(0xffcda94b)),
+          SizedBox(height: 112, child: SvgPicture.asset('assets/legal_expart_logo.svg', fit: BoxFit.contain)),
           const SizedBox(height: 8),
           const Text('Legal Expart', textAlign: TextAlign.center,
             style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Color(0xff12345a))),
