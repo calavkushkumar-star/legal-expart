@@ -21,8 +21,14 @@ jobs:
           cache: true
       - name: Generate Android platform scaffolding
         run: flutter create --platforms=android --org com.legalexpart .
+      - name: Render branded app icon
+        run: |
+          python -m pip install --quiet cairosvg
+          python -c "import cairosvg; cairosvg.svg2png(url='assets/legal_expart_logo.svg', write_to='assets/legal_expart_icon.png', output_width=512, output_height=512)"
       - name: Install dependencies
         run: flutter pub get
+      - name: Generate Android launcher icons
+        run: dart run flutter_launcher_icons
       - name: Analyze Dart code
         run: flutter analyze --no-fatal-infos lib
       - name: Build debug APK
