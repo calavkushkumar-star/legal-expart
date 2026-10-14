@@ -27,6 +27,8 @@ jobs:
         run: flutter analyze --no-fatal-infos lib
       - name: Build debug APK
         run: flutter build apk --debug
+      - name: Build release APK
+        run: flutter build apk --release
       - name: Build release app bundle
         run: flutter build appbundle --release
       - name: Upload APK artifact
@@ -34,6 +36,13 @@ jobs:
         with:
           name: legal-expart-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: legal-expart-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload AAB artifact
