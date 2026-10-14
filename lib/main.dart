@@ -800,6 +800,56 @@ class DashboardPage extends StatelessWidget {
                 ),
               ),
             )).toList()),
+        const SizedBox(height: 22),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance.collection('services').where('isActive', isEqualTo: true).snapshots(),
+          builder: (context, serviceSnap) {
+            if (serviceSnap.hasError || !serviceSnap.hasData || serviceSnap.data!.docs.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(hindi, 'Featured Services', 'विशेष सेवाएँ'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              ...serviceSnap.data!.docs.map((doc) {
+                final d = doc.data();
+                final name = (d['name'] ?? d['title'] ?? 'Service').toString();
+                final description = (d['description'] ?? '').toString();
+                final price = d['price'] == null ? '' : '₹${d['price']}';
+                return Card(child: ListTile(
+                  leading: const CircleAvatar(backgroundColor: Color(0xffeaf1fb), child: Icon(Icons.miscellaneous_services, color: Color(0xff12345a))),
+                  title: Text(name),
+                  subtitle: Text('${description.isEmpty ? 'Available on request' : description}${price.isEmpty ? '' : '\\nPrice: $price'}'),
+                  isThreeLine: description.isNotEmpty || price.isNotEmpty,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => requestService(context, name),
+                ));
+              }),
+            ]);
+          },
+        ),
+        const SizedBox(height: 18),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance.collection('offers').where('isActive', isEqualTo: true).snapshots(),
+          builder: (context, offerSnap) {
+            if (offerSnap.hasError || !offerSnap.hasData || offerSnap.data!.docs.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(hindi, 'Latest Offers', 'नए ऑफर'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              ...offerSnap.data!.docs.map((doc) {
+                final d = doc.data();
+                return Card(color: const Color(0xfffff8e6), child: ListTile(
+                  leading: const Icon(Icons.local_offer_outlined, color: Color(0xffb7791f)),
+                  title: Text((d['name'] ?? d['title'] ?? 'Special Offer').toString()),
+                  subtitle: Text('${d['description'] ?? ''}${d['discount'] != null ? '\\nOffer: ${d['discount']}' : ''}${d['price'] != null ? '\\nPrice: ₹${d['price']}' : ''}'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => requestService(context, (d['name'] ?? d['title'] ?? 'Special Offer').toString()),
+                ));
+              }),
+            ]);
+          },
+        ),
         const SizedBox(height: 18),
         Card(child: ListTile(leading: const Icon(Icons.support_agent),
           title: Text(tr(hindi, 'Need legal assistance?', 'कानूनी सहायता चाहिए?')),
