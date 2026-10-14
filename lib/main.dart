@@ -405,10 +405,23 @@ class RequestHistoryPage extends StatelessWidget {
 }
 
 
-class AdminDashboardPage extends StatelessWidget {
+class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
+  @override
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+}
+
+class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const navy = Color(0xff12345a);
   static const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+  int selected = 0;
+  static const sections = [
+    ('Dashboard', Icons.dashboard_outlined),
+    ('Service Requests', Icons.assignment_outlined),
+    ('Add Service', Icons.add_business_outlined),
+    ('Add Offers', Icons.local_offer_outlined),
+    ('Customer Information', Icons.people_outline),
+  ];
 
   Future<void> _setStatus(BuildContext context, String id, String status) async {
     try {
@@ -417,10 +430,199 @@ class AdminDashboardPage extends StatelessWidget {
       });
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Status updated: $status')));
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not update status. Check admin role and Firestore rules.')));
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not update status: $e')));
     }
   }
+
+  Future<void> _addCatalogItem({required bool offer}) async {
+    final name = TextEditingController();
+    final description = TextEditingController();
+    final price = TextEditingController();
+    final discount = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final saved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: Text(offer ? 'Add Offer' : 'Add Service'),
+      content: SizedBox(width: 420, child: Form(key: formKey, child: SingleChildScrollView(child: Column(
+        mainAxisSize: MainAxisSize.min, children: [
+          TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Name / Title'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+          TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description'), maxLines: 3),
+          TextFormField(controller: price, decoration: const InputDecoration(labelText: 'Price (₹)', prefixText: '₹ '), keyboardType: TextInputType.number, validator: offer ? null : (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+          if (offer) TextFormField(controller: discount, decoration: const InputDecoration(labelText: 'Discount / Offer details')),
+        ],
+      )))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save')),
+      ],
+    ));
+    if (saved == true) {
+      try {
+        final collection = FirebaseFirestore.instance.collection(offer ? 'offers' : 'services');
+        await collection.add({
+          'name': name.text.trim(),
+          'title': name.text.trim(),
+          'description': description.text.trim(),
+          if (price.text.trim().isNotEmpty) 'price': price.text.trim(),
+          if (discount.text.trim().isNotEmpty) 'discount': discount.text.trim(),
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': FirebaseAuth.instance.currentUser?.uid,
+        });
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(offer ? 'Offer added successfully.' : 'Service added successfully.')));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed. Update Firestore Rules for ${offer ? 'offers' : 'services'} collection. Details: $e')));
+      }
+    }
+    name.dispose(); description.dispose(); price.dispose(); discount.dispose();
+  }
+
+  Widget _metric(String title, int value, IconData icon) => _AdminMetric(title: title, value: '$value', icon: icon);
+
+  Widget _dashboard() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    stream: FirebaseFirestore.instance.collection('serviceRequests').snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) return Center(child: Text('Unable to load requests: ${snapshot.error}'));
+      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+      final docs = snapshot.data!.docs;
+      final pending = docs.where((d) => (d.data()['status'] ?? 'Pending') == 'Pending').length;
+      final active = docs.where((d) => (d.data()['status'] ?? '') == 'In Progress').length;
+      final completed = docs.where((d) => (d.data()['status'] ?? '') == 'Completed').length;
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        const Text('Admin Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: navy)),
+        const SizedBox(height: 6),
+        const Text('Manage services, offers, customer information and consultation bookings.'),
+        const SizedBox(height: 18),
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          _metric('Total Requests', docs.length, Icons.inbox_outlined),
+          _metric('Pending', pending, Icons.pending_actions),
+          _metric('In Progress', active, Icons.autorenew),
+          _metric('Completed', completed, Icons.task_alt),
+        ]),
+        const SizedBox(height: 22),
+        const Text('Quick actions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          FilledButton.icon(onPressed: () => setState(() => selected = 2), icon: const Icon(Icons.add), label: const Text('Add Service')),
+          FilledButton.icon(onPressed: () => setState(() => selected = 3), icon: const Icon(Icons.local_offer), label: const Text('Add Offers')),
+          OutlinedButton.icon(onPressed: () => setState(() => selected = 4), icon: const Icon(Icons.people), label: const Text('Customer Information')),
+        ]),
+        const SizedBox(height: 20),
+        const Text('Recent Customer Requests', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        ...docs.take(5).map((doc) {
+          final d = doc.data();
+          return Card(child: ListTile(
+            leading: const Icon(Icons.assignment_outlined, color: navy),
+            title: Text((d['service'] ?? 'Service request').toString()),
+            subtitle: Text('${d['email'] ?? d['customerEmail'] ?? ''}\n${d['note'] ?? d['message'] ?? ''}'),
+            isThreeLine: true,
+            trailing: PopupMenuButton<String>(
+              initialValue: statuses.contains((d['status'] ?? 'Pending').toString()) ? (d['status'] ?? 'Pending').toString() : 'Pending',
+              onSelected: (v) => _setStatus(context, doc.id, v),
+              itemBuilder: (_) => statuses.map((v) => PopupMenuItem(value: v, child: Text(v))).toList(),
+              child: Text((d['status'] ?? 'Pending').toString()),
+            ),
+          ));
+        }),
+      ]);
+    },
+  );
+
+  Widget _requests() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    stream: FirebaseFirestore.instance.collection('serviceRequests').snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) return Center(child: Text('Could not load requests: ${snapshot.error}'));
+      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+      final docs = snapshot.data!.docs.toList()..sort((a, b) {
+        final av = a.data()['createdAt']; final bv = b.data()['createdAt'];
+        return (bv is Timestamp ? bv.millisecondsSinceEpoch : 0).compareTo(av is Timestamp ? av.millisecondsSinceEpoch : 0);
+      });
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        const Text('Customer Requests', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        if (docs.isEmpty) const Text('No service requests found.'),
+        ...docs.map((doc) {
+          final d = doc.data(); final status = (d['status'] ?? 'Pending').toString();
+          return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.assignment_outlined, color: navy),
+              const SizedBox(width: 10),
+              Expanded(child: Text((d['service'] ?? 'Service request').toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+              PopupMenuButton<String>(onSelected: (v) => _setStatus(context, doc.id, v),
+                itemBuilder: (_) => statuses.map((v) => PopupMenuItem(value: v, child: Text(v))).toList(),
+                child: Chip(label: Text(status))),
+            ]),
+            Text('Customer: ${d['email'] ?? d['customerEmail'] ?? 'Unknown'}'),
+            if ((d['note'] ?? d['message'] ?? '').toString().isNotEmpty) Text('Details: ${d['note'] ?? d['message']}'),
+            if (d['uid'] != null) SelectableText('Customer UID: ${d['uid']}'),
+          ])));
+        }),
+      ]);
+    },
+  );
+
+  Widget _catalog({required bool offer}) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Padding(padding: const EdgeInsets.fromLTRB(20, 20, 20, 8), child: Row(children: [
+      Expanded(child: Text(offer ? 'Offers' : 'Services', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold))),
+      FilledButton.icon(onPressed: () => _addCatalogItem(offer: offer), icon: const Icon(Icons.add), label: Text(offer ? 'Add Offer' : 'Add Service')),
+    ])),
+    Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection(offer ? 'offers' : 'services').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('Could not load ${offer ? 'offers' : 'services'}. Check Firestore Rules.\n${snapshot.error}')));
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (snapshot.data!.docs.isEmpty) return Center(child: Text('No ${offer ? 'offers' : 'services'} yet. Use the button above to add one.'));
+        return ListView(padding: const EdgeInsets.all(20), children: snapshot.data!.docs.map((doc) {
+          final d = doc.data();
+          return Card(child: ListTile(
+            leading: Icon(offer ? Icons.local_offer_outlined : Icons.miscellaneous_services, color: navy),
+            title: Text((d['name'] ?? d['title'] ?? 'Untitled').toString()),
+            subtitle: Text('${d['description'] ?? ''}${d['price'] != null ? '\nPrice: ₹${d['price']}' : ''}${d['discount'] != null ? '\nOffer: ${d['discount']}' : ''}'),
+            isThreeLine: true,
+            trailing: IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline), onPressed: () async {
+              final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+                title: const Text('Delete item?'),
+                content: const Text('This cannot be undone.'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                ],
+              ));
+              if (yes == true) {
+                try { await doc.reference.delete(); }
+                catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
+              }
+            }),
+          ));
+        }).toList());
+      },
+    )),
+  ]);
+
+  Widget _customers() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    stream: FirebaseFirestore.instance.collection('users').snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('Could not load customers. Check Firestore Rules.\n${snapshot.error}')));
+      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+      final docs = snapshot.data!.docs.where((d) => d.data()['role'] == 'customer').toList();
+      return ListView(padding: const EdgeInsets.all(20), children: [
+        const Text('Customer Information', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Text('Total customers: ${docs.length}'),
+        const SizedBox(height: 8),
+        if (docs.isEmpty) const Text('No customer profiles found in users collection.'),
+        ...docs.map((doc) {
+          final d = doc.data();
+          return Card(child: ListTile(
+            leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+            title: Text((d['name'] ?? 'Customer').toString()),
+            subtitle: Text('${d['email'] ?? ''}\nUID: ${doc.id}'),
+            isThreeLine: true,
+          ));
+        }),
+      ]);
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -432,85 +634,18 @@ class AdminDashboardPage extends StatelessWidget {
           Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Center(child: Text(user?.email ?? 'Admin', style: const TextStyle(fontSize: 12)))),
           IconButton(tooltip: 'Logout', onPressed: () => FirebaseAuth.instance.signOut(), icon: const Icon(Icons.logout)),
         ]),
-      body: LayoutBuilder(builder: (context, constraints) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Admin Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: navy)),
-          const SizedBox(height: 6),
-          const Text('Manage customer service requests and consultation bookings.'),
-          const SizedBox(height: 18),
-          Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance.collection('serviceRequests').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) return const Center(child: Text('Unable to load requests. Verify the admin role and Firestore Security Rules.'));
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              final docs = snapshot.data!.docs.toList()..sort((a, b) {
-                final av = a.data()['createdAt']; final bv = b.data()['createdAt'];
-                final am = av is Timestamp ? av.millisecondsSinceEpoch : 0;
-                final bm = bv is Timestamp ? bv.millisecondsSinceEpoch : 0;
-                return bm.compareTo(am);
-              });
-              final pending = docs.where((d) => (d.data()['status'] ?? 'Pending') == 'Pending').length;
-              final active = docs.where((d) => (d.data()['status'] ?? '') == 'In Progress').length;
-              final completed = docs.where((d) => (d.data()['status'] ?? '') == 'Completed').length;
-              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Wrap(spacing: 12, runSpacing: 12, children: [
-                  _AdminMetric(title: 'Total Requests', value: '${docs.length}', icon: Icons.inbox_outlined),
-                  _AdminMetric(title: 'Pending', value: '$pending', icon: Icons.pending_actions),
-                  _AdminMetric(title: 'In Progress', value: '$active', icon: Icons.autorenew),
-                  _AdminMetric(title: 'Completed', value: '$completed', icon: Icons.task_alt),
-                ]),
-                const SizedBox(height: 18),
-                const Text('Customer Requests', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Expanded(child: docs.isEmpty
-                  ? const Center(child: Text('No service requests have been submitted yet.'))
-                  : ListView.separated(
-                    itemCount: docs.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final doc = docs[index]; final data = doc.data();
-                      final status = (data['status'] ?? 'Pending').toString();
-                      final created = data['createdAt'];
-                      final dateText = created is Timestamp ? MaterialLocalizations.of(context).formatShortDate(created.toDate()) : 'Date unavailable';
-                      final service = (data['service'] ?? 'Service request').toString();
-                      final email = (data['email'] ?? data['customerEmail'] ?? '').toString();
-                      final note = (data['note'] ?? data['message'] ?? '').toString();
-                      return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            const CircleAvatar(backgroundColor: Color(0xffeaf1fb), child: Icon(Icons.assignment_outlined, color: navy)),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(service, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text(dateText, style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
-                            ])),
-                            PopupMenuButton<String>(
-                              tooltip: 'Update status',
-                              initialValue: statuses.contains(status) ? status : 'Pending',
-                              onSelected: (v) => _setStatus(context, doc.id, v),
-                              itemBuilder: (_) => statuses.map((s) => PopupMenuItem(value: s, child: Text(s))).toList(),
-                              child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(color: status == 'Completed' ? const Color(0xffd9f4df) : const Color(0xfffff0cc), borderRadius: BorderRadius.circular(18)),
-                                child: Text(status, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                            ),
-                          ]),
-                          if (email.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 10), child: Text('Customer: $email')),
-                          if (note.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Details: $note')),
-                          if (data['uid'] != null) Padding(
-                            padding: const EdgeInsets.only(top: 5),
-                            child: Text('Customer UID: ' + data['uid'].toString(),
-                              style: const TextStyle(color: Colors.blueGrey, fontSize: 11)),
-                          ),
-                        ],
-                      )));
-                    },
-                  )),
-              ]);
-            },
-          )),
-        ]),
-      )),
+      body: Row(children: [
+        NavigationRail(
+          selectedIndex: selected,
+          onDestinationSelected: (v) => setState(() => selected = v),
+          labelType: NavigationRailLabelType.all,
+          destinations: sections.map((s) => NavigationRailDestination(icon: Icon(s.$2), label: Text(s.$1))).toList(),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(child: IndexedStack(index: selected, children: [
+          _dashboard(), _requests(), _catalog(offer: false), _catalog(offer: true), _customers(),
+        ])),
+      ]),
     );
   }
 }
