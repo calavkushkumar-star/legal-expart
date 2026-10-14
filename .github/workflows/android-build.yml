@@ -52,3 +52,32 @@ jobs:
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
+
+  build-windows-admin:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Windows desktop scaffolding
+        run: flutter create --platforms=windows --org com.legalexpart .
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze Dart code
+        run: flutter analyze --no-fatal-infos lib
+      - name: Build Windows desktop app
+        run: flutter build windows --release
+      - name: Package Windows admin app
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath legal-expart-windows-admin.zip
+      - name: Upload Windows admin app
+        uses: actions/upload-artifact@v4
+        with:
+          name: legal-expart-windows-admin
+          path: legal-expart-windows-admin.zip
+          if-no-files-found: error
+          retention-days: 14
