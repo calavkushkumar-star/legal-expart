@@ -400,10 +400,10 @@ class AdminDashboardPage extends StatelessWidget {
               final completed = docs.where((d) => (d.data()['status'] ?? '') == 'Completed').length;
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Wrap(spacing: 12, runSpacing: 12, children: [
-                  _AdminMetric(title: 'Total Requests', value: '\${docs.length}', icon: Icons.inbox_outlined),
-                  _AdminMetric(title: 'Pending', value: '\${pending}', icon: Icons.pending_actions),
-                  _AdminMetric(title: 'In Progress', value: '\${active}', icon: Icons.autorenew),
-                  _AdminMetric(title: 'Completed', value: '\${completed}', icon: Icons.task_alt),
+                  _AdminMetric(title: 'Total Requests', value: '${docs.length}', icon: Icons.inbox_outlined),
+                  _AdminMetric(title: 'Pending', value: '$pending', icon: Icons.pending_actions),
+                  _AdminMetric(title: 'In Progress', value: '$active', icon: Icons.autorenew),
+                  _AdminMetric(title: 'Completed', value: '$completed', icon: Icons.task_alt),
                 ]),
                 const SizedBox(height: 18),
                 const Text('Customer Requests', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -442,7 +442,11 @@ class AdminDashboardPage extends StatelessWidget {
                           ]),
                           if (email.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 10), child: Text('Customer: $email')),
                           if (note.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Details: $note')),
-                          if (data['uid'] != null) Padding(padding: const EdgeInsets.only(top: 5), child: Text('Customer UID: \${data['uid']}', style: const TextStyle(color: Colors.blueGrey, fontSize: 11))),
+                          if (data['uid'] != null) Padding(
+                            padding: const EdgeInsets.only(top: 5),
+                            child: Text('Customer UID: ' + data['uid'].toString(),
+                              style: const TextStyle(color: Colors.blueGrey, fontSize: 11)),
+                          ),
                         ],
                       )));
                     },
