@@ -782,24 +782,46 @@ class DashboardPage extends StatelessWidget {
             },
           )
         else
-          GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2, childAspectRatio: .94, crossAxisSpacing: 12, mainAxisSpacing: 12,
-            children: services.map((s) => Card(clipBehavior: Clip.antiAlias,
-              child: InkWell(onTap: () => requestService(context, s.$1),
-                child: Padding(padding: const EdgeInsets.all(14),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    CircleAvatar(backgroundColor: const Color(0xffeaf1fb), child: Icon(s.$4, color: const Color(0xff12345a))),
-                    const Spacer(),
-                    Text(tr(hindi, s.$1, s.$2), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    const SizedBox(height: 6),
-                    Text(s.$3, style: const TextStyle(color: Color(0xff1268df), fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(tr(hindi, 'Request service →', 'सर्विस लें →'),
-                      style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+          Column(children: services.map((s) {
+            final description = switch (s.$1) {
+              'GST Registration' => tr(hindi, 'GST registration and filing assistance for your business.', 'आपके व्यवसाय के लिए GST रजिस्ट्रेशन और रिटर्न में सहायता।'),
+              'MSME / Udyam' => tr(hindi, 'Apply for Udyam registration for eligible small businesses.', 'पात्र छोटे व्यवसायों के लिए उद्यम रजिस्ट्रेशन।'),
+              'Food License (FSSAI)' => tr(hindi, 'Assistance with food business licence and registration.', 'खाद्य व्यवसाय के लाइसेंस और रजिस्ट्रेशन में सहायता।'),
+              'Digital Signature' => tr(hindi, 'Digital signature certificate application assistance.', 'डिजिटल सिग्नेचर सर्टिफिकेट के आवेदन में सहायता।'),
+              'Trademark Registration' => tr(hindi, 'Help with trademark application and brand protection.', 'ट्रेडमार्क आवेदन और ब्रांड सुरक्षा में सहायता।'),
+              _ => tr(hindi, 'Get help from a legal professional for your query.', 'अपने सवाल के लिए कानूनी विशेषज्ञ से सहायता लें।'),
+            };
+            return Card(
+              margin: const EdgeInsets.only(top: 10, bottom: 4),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => requestService(context, s.$1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    CircleAvatar(
+                      radius: 25,
+                      backgroundColor: const Color(0xffeaf1fb),
+                      child: Icon(s.$4, color: const Color(0xff12345a), size: 25),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(tr(hindi, s.$1, s.$2),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                      const SizedBox(height: 5),
+                      Text(description,
+                        style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                      const SizedBox(height: 5),
+                      Text('${tr(hindi, 'Price', 'कीमत')}: ${s.$3}',
+                        style: const TextStyle(fontSize: 13, color: Color(0xff1268df), fontWeight: FontWeight.w600)),
+                    ])),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, color: Colors.blueGrey),
                   ]),
                 ),
               ),
-            )).toList()),
+            );
+          }).toList()),
         const SizedBox(height: 22),
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance.collection('services').where('isActive', isEqualTo: true).snapshots(),
