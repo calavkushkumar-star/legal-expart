@@ -479,6 +479,68 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     name.dispose(); description.dispose(); price.dispose(); discount.dispose();
   }
 
+  Future<void> _editCatalogItem({required bool offer, required DocumentSnapshot<Map<String, dynamic>> doc}) async {
+    final data = doc.data() ?? <String, dynamic>{};
+    final name = TextEditingController(text: (data['name'] ?? data['title'] ?? '').toString());
+    final description = TextEditingController(text: (data['description'] ?? '').toString());
+    final price = TextEditingController(text: (data['price'] ?? '').toString());
+    final discount = TextEditingController(text: (data['discount'] ?? '').toString());
+    final formKey = GlobalKey<FormState>();
+    bool active = data['isActive'] != false;
+    final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) => AlertDialog(
+      title: Text(offer ? 'Edit Offer' : 'Edit Service'),
+      content: SizedBox(width: 420, child: Form(key: formKey, child: SingleChildScrollView(child: Column(
+        mainAxisSize: MainAxisSize.min, children: [
+          TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Name / Title'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+          TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description'), maxLines: 3),
+          TextFormField(controller: price, decoration: const InputDecoration(labelText: 'Price (₹)'), keyboardType: TextInputType.number),
+          if (offer) TextFormField(controller: discount, decoration: const InputDecoration(labelText: 'Discount / Offer details')),
+          SwitchListTile(title: const Text('Visible to customers'), value: active, onChanged: (v) => setDialogState(() => active = v)),
+        ],
+      )))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save changes')),
+      ],
+    )));
+    if (saved == true) {
+      try {
+        await doc.reference.update({
+          'name': name.text.trim(),
+          'title': name.text.trim(),
+          'description': description.text.trim(),
+          'price': price.text.trim(),
+          'discount': discount.text.trim(),
+          'isActive': active,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': FirebaseAuth.instance.currentUser?.uid,
+        });
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(offer ? 'Offer updated.' : 'Service updated.')));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      }
+    }
+    name.dispose(); description.dispose(); price.dispose(); discount.dispose();
+  }
+
+  Future<void> _deleteCatalogItem({required bool offer, required DocumentSnapshot<Map<String, dynamic>> doc}) async {
+    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: Text('Delete ${offer ? 'offer' : 'service'}?'),
+      content: const Text('This item will be removed and cannot be restored.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+      ],
+    ));
+    if (yes != true) return;
+    try {
+      await doc.reference.delete();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(offer ? 'Offer deleted.' : 'Service deleted.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+    }
+  }
+
   Widget _metric(String title, int value, IconData icon) => _AdminMetric(title: title, value: '$value', icon: icon);
 
   Widget _dashboard() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -582,20 +644,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             title: Text((d['name'] ?? d['title'] ?? 'Untitled').toString()),
             subtitle: Text('${d['description'] ?? ''}${d['price'] != null ? '\nPrice: ₹${d['price']}' : ''}${d['discount'] != null ? '\nOffer: ${d['discount']}' : ''}'),
             isThreeLine: true,
-            trailing: IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline), onPressed: () async {
-              final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-                title: const Text('Delete item?'),
-                content: const Text('This cannot be undone.'),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
-                ],
-              ));
-              if (yes == true) {
-                try { await doc.reference.delete(); }
-                catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
-              }
-            }),
+            trailing: PopupMenuButton<String>(
+              tooltip: 'Manage item',
+              onSelected: (action) {
+                if (action == 'edit') _editCatalogItem(offer: offer, doc: doc);
+                if (action == 'delete') _deleteCatalogItem(offer: offer, doc: doc);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: ListTile(dense: true, leading: Icon(Icons.edit_outlined), title: Text('Edit'))),
+                PopupMenuItem(value: 'delete', child: ListTile(dense: true, leading: Icon(Icons.delete_outline), title: Text('Delete'))),
+              ],
+            ),
           ));
         }).toList());
       },
