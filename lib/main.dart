@@ -1,6 +1,8 @@
 import 'dart:io' show Platform;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -690,31 +692,97 @@ class DashboardPage extends StatelessWidget {
   }
 
   Future<void> requestService(BuildContext context, String service) async {
+    final formKey = GlobalKey<FormState>();
+    final fullName = TextEditingController();
+    final mobile = TextEditingController();
+    final address = TextEditingController();
     final note = TextEditingController();
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(tr(hindi, 'Request service', 'सर्विस रिक्वेस्ट')),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(service), const SizedBox(height: 12),
-        TextField(controller: note, maxLines: 3,
-          decoration: InputDecoration(hintText: tr(hindi, 'Describe your requirement', 'अपनी आवश्यकता लिखें'),
-            border: const OutlineInputBorder())),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr(hindi, 'Cancel', 'रद्द करें'))),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr(hindi, 'Submit', 'जमा करें'))),
-      ],
-    ));
-    if (ok == true) {
-      final user = FirebaseAuth.instance.currentUser!;
-      await FirebaseFirestore.instance.collection('serviceRequests').add({
-        'uid': user.uid, 'email': user.email, 'service': service,
-        'note': note.text.trim(), 'status': 'Pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(hindi, 'Request submitted successfully', 'आपकी रिक्वेस्ट जमा हो गई है'))));
+    XFile? panFile, aadhaarFile, voterFile;
+    bool submitting = false;
+    String? formError;
+
+    Future<XFile?> pickDocument() => ImagePicker().pickImage(
+      source: ImageSource.gallery, imageQuality: 78, maxWidth: 1800);
+
+    final ok = await showDialog<bool>(context: context, barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) => AlertDialog(
+        title: Text(tr(hindi, 'Service application', 'सर्विस आवेदन')),
+        content: SizedBox(width: 480, child: SingleChildScrollView(child: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(service, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 14),
+            TextFormField(controller: fullName, textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Full Name / पूरा नाम', border: OutlineInputBorder()),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Full name is required' : null),
+            const SizedBox(height: 10),
+            TextFormField(controller: mobile, keyboardType: TextInputType.phone, maxLength: 10,
+              decoration: const InputDecoration(labelText: 'Mobile Number / मोबाइल नंबर', border: OutlineInputBorder(), counterText: ''),
+              validator: (v) => v == null || !RegExp(r'^[6-9][0-9]{9}$').hasMatch(v.trim()) ? 'Enter a valid 10-digit Indian mobile number' : null),
+            const SizedBox(height: 10),
+            TextFormField(controller: address, minLines: 2, maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Full Address / पूरा पता', border: OutlineInputBorder()),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Full address is required' : null),
+            const SizedBox(height: 10),
+            TextFormField(controller: note, maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Details / आवश्यकता का विवरण', border: OutlineInputBorder())),
+            const SizedBox(height: 14),
+            const Text('Upload documents (optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Upload only documents needed for this service. Files should be accessible only to you and authorized admins.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 10),
+            _documentPickerRow('PAN Card / पैन कार्ड', panFile, () async { final x = await pickDocument(); if (x != null) setDialogState(() => panFile = x); }, () => setDialogState(() => panFile = null)),
+            _documentPickerRow('Aadhaar Card / आधार कार्ड', aadhaarFile, () async { final x = await pickDocument(); if (x != null) setDialogState(() => aadhaarFile = x); }, () => setDialogState(() => aadhaarFile = null)),
+            _documentPickerRow('Voter ID / वोटर कार्ड', voterFile, () async { final x = await pickDocument(); if (x != null) setDialogState(() => voterFile = x); }, () => setDialogState(() => voterFile = null)),
+            if (formError != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(formError!, style: const TextStyle(color: Colors.red))),
+            if (submitting) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator()),
+          ]),
+        ))),
+        actions: [
+          TextButton(onPressed: submitting ? null : () => Navigator.pop(ctx, false), child: Text(tr(hindi, 'Cancel', 'रद्द करें'))),
+          FilledButton(onPressed: submitting ? null : () async {
+            if (!formKey.currentState!.validate()) return;
+            setDialogState(() { submitting = true; formError = null; });
+            try {
+              final user = FirebaseAuth.instance.currentUser!;
+              final refDoc = FirebaseFirestore.instance.collection('serviceRequests').doc();
+              final docs = <String, String>{};
+              Future<void> upload(String key, XFile? file) async {
+                if (file == null) return;
+                final ref = FirebaseStorage.instance.ref().child('serviceRequests/${user.uid}/${refDoc.id}/$key.jpg');
+                await ref.putData(await file.readAsBytes(), SettableMetadata(contentType: 'image/jpeg'));
+                docs[key] = await ref.getDownloadURL();
+              }
+              await upload('panCardUrl', panFile);
+              await upload('aadhaarCardUrl', aadhaarFile);
+              await upload('voterCardUrl', voterFile);
+              await refDoc.set({
+                'uid': user.uid, 'email': user.email, 'service': service,
+                'fullName': fullName.text.trim(), 'mobileNumber': mobile.text.trim(),
+                'fullAddress': address.text.trim(), 'note': note.text.trim(),
+                'documents': docs, 'status': 'Pending',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+              if (ctx.mounted) Navigator.pop(ctx, true);
+            } catch (e) {
+              setDialogState(() { submitting = false; formError = 'Submission failed. Check Firebase Storage setup and Rules. $e'; });
+            }
+          }, child: Text(tr(hindi, 'Submit application', 'आवेदन जमा करें'))),
+        ],
+      )),
+    );
+    if (ok == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr(hindi, 'Application submitted successfully', 'आपका आवेदन सफलतापूर्वक जमा हो गया है'))));
     }
-    note.dispose();
+    fullName.dispose(); mobile.dispose(); address.dispose(); note.dispose();
+  }
+
+  Widget _documentPickerRow(String title, XFile? file, VoidCallback onPick, VoidCallback onRemove) {
+    return Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
+      const Icon(Icons.upload_file, color: Color(0xff12345a)), const SizedBox(width: 8),
+      Expanded(child: Text(file == null ? title : '$title — ${file.name}', maxLines: 2, overflow: TextOverflow.ellipsis)),
+      TextButton(onPressed: onPick, child: Text(file == null ? 'Upload' : 'Change')),
+      if (file != null) IconButton(onPressed: onRemove, icon: const Icon(Icons.close, size: 18)),
+    ]));
   }
 
   @override Widget build(BuildContext context) => Scaffold(
