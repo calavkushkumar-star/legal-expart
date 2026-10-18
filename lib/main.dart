@@ -881,12 +881,6 @@ Future<void> requestService(BuildContext context, String service) async {
             TextFormField(controller: note, maxLines: 3,
               decoration: const InputDecoration(labelText: 'Details / आवश्यकता का विवरण', border: OutlineInputBorder())),
             const SizedBox(height: 14),
-            const SizedBox.shrink(),
-            const Text('Upload only documents needed for this service. Files should be accessible only to you and authorized admins.', style: TextStyle(fontSize: 12, color: Colors.black54)),
-            const SizedBox(height: 10),
-            _documentPickerRow('PAN Card / पैन कार्ड', panFile, () async { final x = await pickDocument(); if (x != null) setDialogState(() => panFile = x); }, () => setDialogState(() => panFile = null)),
-            _documentPickerRow('Aadhaar Card / आधार कार्ड', aadhaarFile, () async { final x = await pickDocument(); if (x != null) setDialogState(() => aadhaarFile = x); }, () => setDialogState(() => aadhaarFile = null)),
-            _documentPickerRow('Voter ID / वोटर कार्ड', voterFile, () async { final x = await pickDocument(); if (x != null) setDialogState(() => voterFile = x); }, () => setDialogState(() => voterFile = null)),
             if (formError != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(formError!, style: const TextStyle(color: Colors.red))),
             if (submitting) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator()),
           ]),
@@ -899,26 +893,16 @@ Future<void> requestService(BuildContext context, String service) async {
             try {
               final user = FirebaseAuth.instance.currentUser!;
               final refDoc = FirebaseFirestore.instance.collection('serviceRequests').doc();
-              final docs = <String, String>{};
-              Future<void> upload(String key, XFile? file) async {
-                if (file == null) return;
-                final ref = FirebaseStorage.instance.ref().child('serviceRequests/${user.uid}/${refDoc.id}/$key.jpg');
-                await ref.putData(await file.readAsBytes(), SettableMetadata(contentType: 'image/jpeg'));
-                docs[key] = ref.fullPath;
-              }
-              await upload('panCardUrl', panFile);
-              await upload('aadhaarCardUrl', aadhaarFile);
-              await upload('voterCardUrl', voterFile);
               await refDoc.set({
                 'uid': user.uid, 'email': user.email, 'service': service,
                 'fullName': fullName.text.trim(), 'mobileNumber': mobile.text.trim(),
                 'fullAddress': address.text.trim(), 'note': note.text.trim(),
-                'documents': docs, 'status': 'Pending',
+                'status': 'Pending',
                 'createdAt': FieldValue.serverTimestamp(),
               });
               if (ctx.mounted) Navigator.pop(ctx, true);
             } catch (e) {
-              setDialogState(() { submitting = false; formError = 'Submission failed. Check Firebase Storage setup and Rules. $e'; });
+              setDialogState(() { submitting = false; formError = 'Submission failed. Check Firestore Rules and internet connection. $e'; });
             }
           }, child: Text(tr(hindi, 'Submit application', 'आवेदन जमा करें'))),
         ],
