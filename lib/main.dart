@@ -516,7 +516,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update failed: $e')));
       }
     }
-    name.dispose(); description.dispose(); price.dispose(); discount.dispose();
+    name.dispose(); description.dispose(); discount.dispose();
   }
 
   Future<void> _deleteCatalogItem({required bool offer, required DocumentSnapshot<Map<String, dynamic>> doc}) async {
@@ -639,7 +639,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           return Card(child: ListTile(
             leading: Icon(offer ? Icons.local_offer_outlined : Icons.miscellaneous_services, color: navy),
             title: Text((d['name'] ?? d['title'] ?? 'Untitled').toString()),
-            subtitle: Text('${d['description'] ?? ''}${d['price'] != null ? '\nPrice: ₹${d['price']}' : ''}${d['discount'] != null ? '\nOffer: ${d['discount']}' : ''}'),
+            subtitle: Text('${d['description'] ?? ''}${d['discount'] != null ? '\\nOffer: ${d['discount']}' : ''}),
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
               tooltip: 'Manage item',
