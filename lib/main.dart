@@ -442,7 +442,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Future<void> _addCatalogItem({required bool offer}) async {
     final name = TextEditingController();
     final description = TextEditingController();
-    final price = TextEditingController();
     final discount = TextEditingController();
     final formKey = GlobalKey<FormState>();
     final saved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
@@ -451,7 +450,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         mainAxisSize: MainAxisSize.min, children: [
           TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Name / Title'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
           TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description'), maxLines: 3),
-          if (offer) if (offer) TextFormField(controller: price, decoration: const InputDecoration(labelText: 'Price (₹)'), keyboardType: TextInputType.number),
           if (offer) TextFormField(controller: discount, decoration: const InputDecoration(labelText: 'Discount / Offer details')),
         ],
       )))),
@@ -467,7 +465,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           'name': name.text.trim(),
           'title': name.text.trim(),
           'description': description.text.trim(),
-          if (price.text.trim().isNotEmpty) 'price': price.text.trim(),
           if (discount.text.trim().isNotEmpty) 'discount': discount.text.trim(),
           'isActive': true,
           'createdAt': FieldValue.serverTimestamp(),
@@ -478,14 +475,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed. Update Firestore Rules for ${offer ? 'offers' : 'services'} collection. Details: $e')));
       }
     }
-    name.dispose(); description.dispose(); price.dispose(); discount.dispose();
+    name.dispose(); description.dispose(); discount.dispose();
   }
 
   Future<void> _editCatalogItem({required bool offer, required DocumentSnapshot<Map<String, dynamic>> doc}) async {
     final data = doc.data() ?? <String, dynamic>{};
     final name = TextEditingController(text: (data['name'] ?? data['title'] ?? '').toString());
     final description = TextEditingController(text: (data['description'] ?? '').toString());
-    final price = TextEditingController(text: (data['price'] ?? '').toString());
     final discount = TextEditingController(text: (data['discount'] ?? '').toString());
     final formKey = GlobalKey<FormState>();
     bool active = data['isActive'] != false;
@@ -495,7 +491,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         mainAxisSize: MainAxisSize.min, children: [
           TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Name / Title'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
           TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description'), maxLines: 3),
-          TextFormField(controller: price, decoration: const InputDecoration(labelText: 'Price (₹)'), keyboardType: TextInputType.number),
           if (offer) TextFormField(controller: discount, decoration: const InputDecoration(labelText: 'Discount / Offer details')),
           SwitchListTile(title: const Text('Visible to customers'), value: active, onChanged: (v) => setDialogState(() => active = v)),
         ],
@@ -511,7 +506,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           'name': name.text.trim(),
           'title': name.text.trim(),
           'description': description.text.trim(),
-          'price': price.text.trim(),
           'discount': discount.text.trim(),
           'isActive': active,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -621,41 +615,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ]),
             Text('Customer: ${d['email'] ?? d['customerEmail'] ?? 'Unknown'}'),
             if ((d['note'] ?? d['message'] ?? '').toString().isNotEmpty) Text('Details: ${d['note'] ?? d['message']}'),
-            const SizedBox(height: 8),
-            Text('Payment: ${d['paymentStatus'] ?? 'Not submitted'} | UPI: ${d['upiId'] ?? '—'}'),
-            if ((d['paymentStatus'] ?? '') == 'Verification Requested' || (d['paymentStatus'] ?? '') == 'Payment Verification Pending')
-              Wrap(spacing: 8, children: [
-                FilledButton(onPressed: () async {
-                  final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-                    title: const Text('Verify payment'),
-                    content: const Text('Verify the actual credit in your bank/UPI account before confirming.'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm verified')),
-                    ],
-                  ));
-                  if (ok == true) {
-                    try { await doc.reference.update({'paymentStatus': 'Payment Done', 'paymentVerifiedAt': FieldValue.serverTimestamp(), 'paymentVerifiedBy': FirebaseAuth.instance.currentUser?.uid}); }
-                    catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Verify failed: $e'))); }
-                  }
-                }, child: const Text('Verify Payment')),
-                OutlinedButton(onPressed: () async {
-                  final reason = TextEditingController();
-                  final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-                    title: const Text('Reject payment'),
-                    content: TextField(controller: reason, decoration: const InputDecoration(labelText: 'Reason (optional)')),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject')),
-                    ],
-                  ));
-                  if (ok == true) {
-                    try { await doc.reference.update({'paymentStatus': 'Payment Rejected', 'paymentRejectionReason': reason.text.trim(), 'paymentRejectedAt': FieldValue.serverTimestamp(), 'paymentRejectedBy': FirebaseAuth.instance.currentUser?.uid}); }
-                    catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reject failed: $e'))); }
-                  }
-                  reason.dispose();
-                }, child: const Text('Reject Payment')),
-              ]),
 
             if (d['uid'] != null) SelectableText('Customer UID: ${d['uid']}'),
           ])));
