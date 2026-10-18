@@ -452,7 +452,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         mainAxisSize: MainAxisSize.min, children: [
           TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Name / Title'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
           TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description'), maxLines: 3),
-          TextFormField(controller: price, decoration: const InputDecoration(labelText: 'Price (₹)', prefixText: '₹ '), keyboardType: TextInputType.number, validator: offer ? null : (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+          if (offer) if (offer) TextFormField(controller: price, decoration: const InputDecoration(labelText: 'Price (₹)'), keyboardType: TextInputType.number),
           if (offer) TextFormField(controller: discount, decoration: const InputDecoration(labelText: 'Discount / Offer details')),
         ],
       )))),
@@ -929,12 +929,12 @@ class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key, required this.hindi, required this.toggle});
 
   static const services = [
-    ('GST Registration', 'GST रजिस्ट्रेशन', '₹599', Icons.receipt_long),
-    ('MSME / Udyam', 'MSME / उद्यम', '₹699', Icons.storefront),
-    ('Food License (FSSAI)', 'फूड लाइसेंस (FSSAI)', '₹799', Icons.restaurant),
-    ('Digital Signature', 'डिजिटल सिग्नेचर', '₹999', Icons.verified_user),
-    ('Trademark Registration', 'ट्रेडमार्क रजिस्ट्रेशन', '₹2,999', Icons.shield_outlined),
-    ('Legal Consultation', 'कानूनी सलाह', '₹499', Icons.gavel),
+    ('GST Registration', 'GST रजिस्ट्रेशन', 'Free', Icons.receipt_long),
+    ('MSME / Udyam', 'MSME / उद्यम', 'Free', Icons.storefront),
+    ('Food License (FSSAI)', 'फूड लाइसेंस (FSSAI)', 'Free', Icons.restaurant),
+    ('Digital Signature', 'डिजिटल सिग्नेचर', 'Free', Icons.verified_user),
+    ('Trademark Registration', 'ट्रेडमार्क रजिस्ट्रेशन', 'Free', Icons.shield_outlined),
+    ('Legal Consultation', 'कानूनी सलाह', 'Free', Icons.gavel),
   ];
 
   Future<bool> isAdmin() async {
@@ -1006,7 +1006,7 @@ Future<void> requestService(BuildContext context, String service) async {
                 if (file == null) return;
                 final ref = FirebaseStorage.instance.ref().child('serviceRequests/${user.uid}/${refDoc.id}/$key.jpg');
                 await ref.putData(await file.readAsBytes(), SettableMetadata(contentType: 'image/jpeg'));
-                docs[key] = await ref.getDownloadURL();
+                docs[key] = ref.fullPath;
               }
               await upload('panCardUrl', panFile);
               await upload('aadhaarCardUrl', aadhaarFile);
@@ -1168,8 +1168,8 @@ Future<void> requestService(BuildContext context, String service) async {
                 return Card(child: ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xffeaf1fb), child: Icon(Icons.miscellaneous_services, color: Color(0xff12345a))),
                   title: Text(name),
-                  subtitle: Text('${description.isEmpty ? 'Available on request' : description}${price.isEmpty ? '' : '\\nPrice: $price'}'),
-                  isThreeLine: description.isNotEmpty || price.isNotEmpty,
+                  subtitle: Text('${description.isEmpty ? 'Available on request' : description}\\nService: Free'),
+                  isThreeLine: true,
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => requestService(context, name),
                 ));
@@ -1192,7 +1192,7 @@ Future<void> requestService(BuildContext context, String service) async {
                 return Card(color: const Color(0xfffff8e6), child: ListTile(
                   leading: const Icon(Icons.local_offer_outlined, color: Color(0xffb7791f)),
                   title: Text((d['name'] ?? d['title'] ?? 'Special Offer').toString()),
-                  subtitle: Text('${d['description'] ?? ''}${d['discount'] != null ? '\\nOffer: ${d['discount']}' : ''}${d['price'] != null ? '\\nPrice: ₹${d['price']}' : ''}'),
+                  subtitle: Text('${d['description'] ?? ''}${d['discount'] != null ? '\\nOffer: ${d['discount']}' : ''}\\nService: Free'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => requestService(context, (d['name'] ?? d['title'] ?? 'Special Offer').toString()),
                 ));
