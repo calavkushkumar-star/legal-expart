@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -386,6 +387,7 @@ class RequestHistoryPage extends StatelessWidget {
               final data = docs[index].data();
               final status = (data['status'] ?? 'Pending').toString();
               final note = (data['note'] ?? '').toString();
+              final paymentStatus = (data['paymentStatus'] ?? 'Payment Verification Pending').toString();
               final createdAt = data['createdAt'];
               final dateText = createdAt is Timestamp ? MaterialLocalizations.of(context).formatShortDate(createdAt.toDate()) : tr(hindi, 'Date pending', 'तारीख उपलब्ध नहीं');
               final dateLabel = tr(hindi, 'Date', 'तारीख');
@@ -393,7 +395,7 @@ class RequestHistoryPage extends StatelessWidget {
               return Card(margin: const EdgeInsets.symmetric(vertical: 6), child: ListTile(
                 leading: CircleAvatar(backgroundColor: const Color(0xffeaf1fb), child: Icon(consultationsOnly ? Icons.gavel : Icons.assignment_outlined, color: const Color(0xff12345a))),
                 title: Text((data['service'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text(dateLabel + ': ' + dateText + noteText)),
+                subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text(dateLabel + ': ' + dateText + noteText + '\nPayment: ' + paymentStatus)),
                 trailing: Container(constraints: const BoxConstraints(maxWidth: 100), padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                   decoration: BoxDecoration(color: status == 'Completed' ? const Color(0xffd9f4df) : const Color(0xfffff0cc), borderRadius: BorderRadius.circular(20)),
                   child: Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: status == 'Completed' ? const Color(0xff18763a) : const Color(0xff805800))),
@@ -620,6 +622,42 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ]),
             Text('Customer: ${d['email'] ?? d['customerEmail'] ?? 'Unknown'}'),
             if ((d['note'] ?? d['message'] ?? '').toString().isNotEmpty) Text('Details: ${d['note'] ?? d['message']}'),
+            const SizedBox(height: 8),
+            Text('Payment: ${d['paymentStatus'] ?? 'Not submitted'} | UPI: ${d['upiId'] ?? '—'}'),
+            if ((d['paymentStatus'] ?? '') == 'Verification Requested' || (d['paymentStatus'] ?? '') == 'Payment Verification Pending')
+              Wrap(spacing: 8, children: [
+                FilledButton(onPressed: () async {
+                  final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+                    title: const Text('Verify payment'),
+                    content: const Text('Verify the actual credit in your bank/UPI account before confirming.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm verified')),
+                    ],
+                  ));
+                  if (ok == true) {
+                    try { await doc.reference.update({'paymentStatus': 'Payment Done', 'paymentVerifiedAt': FieldValue.serverTimestamp(), 'paymentVerifiedBy': FirebaseAuth.instance.currentUser?.uid}); }
+                    catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Verify failed: $e'))); }
+                  }
+                }, child: const Text('Verify Payment')),
+                OutlinedButton(onPressed: () async {
+                  final reason = TextEditingController();
+                  final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+                    title: const Text('Reject payment'),
+                    content: TextField(controller: reason, decoration: const InputDecoration(labelText: 'Reason (optional)')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject')),
+                    ],
+                  ));
+                  if (ok == true) {
+                    try { await doc.reference.update({'paymentStatus': 'Payment Rejected', 'paymentRejectionReason': reason.text.trim(), 'paymentRejectedAt': FieldValue.serverTimestamp(), 'paymentRejectedBy': FirebaseAuth.instance.currentUser?.uid}); }
+                    catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reject failed: $e'))); }
+                  }
+                  reason.dispose();
+                }, child: const Text('Reject Payment')),
+              ]),
+
             if (d['uid'] != null) SelectableText('Customer UID: ${d['uid']}'),
           ])));
         }),
@@ -845,7 +883,69 @@ class DashboardPage extends StatelessWidget {
     return doc.data()?['role'] == 'admin';
   }
 
-  Future<void> requestService(BuildContext context, String service) async {
+  
+class PaymentPage extends StatelessWidget {
+  final String requestId;
+  final String service;
+  final bool hindi;
+  const PaymentPage({super.key, required this.requestId, required this.service, required this.hindi});
+
+  static const upiId = '9006977016-4@ybl';
+  @override
+  Widget build(BuildContext context) {
+    final upiUri = 'upi://pay?pa=$upiId&pn=LAVKUSH%20KUMAR&cu=INR&tn=Legal%20Expart';
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(hindi, 'Payment', 'भुगतान'))),
+      body: ListView(padding: const EdgeInsets.all(20), children: [
+        Container(padding: const EdgeInsets.all(18), color: const Color(0xffeaf7e9),
+          child: Text(tr(hindi, 'After paying, return here and tap Go to Home. Admin will verify your payment.', 'भुगतान करने के बाद यहाँ वापस आएँ और “Go to Home” दबाएँ। Admin आपके भुगतान की जाँच करेगा।'),
+            textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xff246c32)))),
+        const SizedBox(height: 18),
+        Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: const Color(0xff052e4f), borderRadius: BorderRadius.circular(12)),
+          child: Column(children: [
+            Text(service, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            const SizedBox(height: 8), const Text('PhonePe / UPI', style: TextStyle(color: Colors.white70)),
+          ])),
+        const SizedBox(height: 18),
+        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(children: [
+          const Icon(Icons.account_balance_wallet, color: Color(0xff6739a6), size: 38),
+          const SizedBox(height: 8), const Text('PhonePe', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text('SCAN & PAY USING ANY UPI APP'),
+          const SizedBox(height: 12),
+          QrImageView(data: upiUri, version: QrVersions.auto, size: 240, backgroundColor: Colors.white),
+          const SizedBox(height: 8), const SelectableText(upiId, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8), const Text('Account name: LAVKUSH KUMAR', textAlign: TextAlign.center),
+        ]))),
+        const SizedBox(height: 14),
+        const Text('Note: After completing payment, return to Legal Expart and tap Go to Home. Your payment remains pending until Admin verifies it.', textAlign: TextAlign.center),
+        const SizedBox(height: 14),
+        FilledButton.icon(onPressed: () async {
+          try {
+            await FirebaseFirestore.instance.collection('serviceRequests').doc(requestId).update({
+              'paymentStatus': 'Verification Requested', 'paymentMethod': 'PhonePe UPI',
+              'upiId': upiId, 'paymentVerificationRequestedAt': FieldValue.serverTimestamp(),
+            });
+            if (!context.mounted) return;
+            await showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+              title: Text(tr(hindi, 'Request sent to Admin', 'रिक्वेस्ट Admin को भेज दी गई')),
+              content: Text(tr(hindi, 'Admin will verify your payment. Payment History will show Payment Done only after verification.', 'Admin भुगतान जाँचेगा। Payment History में Payment Done केवल verification के बाद दिखेगा।')),
+              actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+            ));
+            if (context.mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not send verification request: $e')));
+          }
+        }, icon: const Icon(Icons.home_outlined), label: Text(tr(hindi, 'Go to Home', 'होम पर जाएँ'))),
+        const SizedBox(height: 18),
+        const Center(child: Text('Account Team & Expert Team Contact: 9006977016', textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff12345a)))),
+      ]),
+    );
+  }
+}
+
+Future<void> requestService(BuildContext context, String service) async {
+    String? submittedRequestId;
     final formKey = GlobalKey<FormState>();
     final fullName = TextEditingController();
     final mobile = TextEditingController();
@@ -914,8 +1014,12 @@ class DashboardPage extends StatelessWidget {
                 'fullName': fullName.text.trim(), 'mobileNumber': mobile.text.trim(),
                 'fullAddress': address.text.trim(), 'note': note.text.trim(),
                 'documents': docs, 'status': 'Pending',
+                'paymentStatus': 'Payment Verification Pending',
+                'paymentMethod': 'PhonePe UPI',
+                'upiId': '9006977016-4@ybl',
                 'createdAt': FieldValue.serverTimestamp(),
               });
+              submittedRequestId = refDoc.id;
               if (ctx.mounted) Navigator.pop(ctx, true);
             } catch (e) {
               setDialogState(() { submitting = false; formError = 'Submission failed. Check Firebase Storage setup and Rules. $e'; });
@@ -924,8 +1028,8 @@ class DashboardPage extends StatelessWidget {
         ],
       )),
     );
-    if (ok == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr(hindi, 'Application submitted successfully', 'आपका आवेदन सफलतापूर्वक जमा हो गया है'))));
+    if (ok == true && context.mounted && submittedRequestId != null) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PaymentPage(requestId: submittedRequestId!, service: service, hindi: hindi)));
     }
     fullName.dispose(); mobile.dispose(); address.dispose(); note.dispose();
   }
