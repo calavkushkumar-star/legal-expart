@@ -863,27 +863,6 @@ class _AdminMetric extends StatelessWidget {
   );
 }
 
-class DashboardPage extends StatelessWidget {
-  final bool hindi;
-  final VoidCallback toggle;
-  const DashboardPage({super.key, required this.hindi, required this.toggle});
-
-  static const services = [
-    ('GST Registration', 'GST रजिस्ट्रेशन', '₹599', Icons.receipt_long),
-    ('MSME / Udyam', 'MSME / उद्यम', '₹699', Icons.storefront),
-    ('Food License (FSSAI)', 'फूड लाइसेंस (FSSAI)', '₹799', Icons.restaurant),
-    ('Digital Signature', 'डिजिटल सिग्नेचर', '₹999', Icons.verified_user),
-    ('Trademark Registration', 'ट्रेडमार्क रजिस्ट्रेशन', '₹2,999', Icons.shield_outlined),
-    ('Legal Consultation', 'कानूनी सलाह', '₹499', Icons.gavel),
-  ];
-
-  Future<bool> isAdmin() async {
-    final user = FirebaseAuth.instance.currentUser!;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    return doc.data()?['role'] == 'admin';
-  }
-
-  
 class PaymentPage extends StatelessWidget {
   final String requestId;
   final String service;
@@ -943,6 +922,29 @@ class PaymentPage extends StatelessWidget {
     );
   }
 }
+
+class DashboardPage extends StatelessWidget {
+  final bool hindi;
+  final VoidCallback toggle;
+  const DashboardPage({super.key, required this.hindi, required this.toggle});
+
+  static const services = [
+    ('GST Registration', 'GST रजिस्ट्रेशन', '₹599', Icons.receipt_long),
+    ('MSME / Udyam', 'MSME / उद्यम', '₹699', Icons.storefront),
+    ('Food License (FSSAI)', 'फूड लाइसेंस (FSSAI)', '₹799', Icons.restaurant),
+    ('Digital Signature', 'डिजिटल सिग्नेचर', '₹999', Icons.verified_user),
+    ('Trademark Registration', 'ट्रेडमार्क रजिस्ट्रेशन', '₹2,999', Icons.shield_outlined),
+    ('Legal Consultation', 'कानूनी सलाह', '₹499', Icons.gavel),
+  ];
+
+  Future<bool> isAdmin() async {
+    final user = FirebaseAuth.instance.currentUser!;
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    return doc.data()?['role'] == 'admin';
+  }
+
+  
+
 
 Future<void> requestService(BuildContext context, String service) async {
     String? submittedRequestId;
