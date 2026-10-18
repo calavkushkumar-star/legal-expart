@@ -639,7 +639,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           return Card(child: ListTile(
             leading: Icon(offer ? Icons.local_offer_outlined : Icons.miscellaneous_services, color: navy),
             title: Text((d['name'] ?? d['title'] ?? 'Untitled').toString()),
-            subtitle: Text('${d['description'] ?? ''}${d['discount'] != null ? '\\nOffer: ${d['discount']}' : ''}),
+            subtitle: Text('${d['description'] ?? ''}${d['discount'] != null ? '\\nOffer: ${d['discount']}' : ''}'),
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
               tooltip: 'Manage item',
