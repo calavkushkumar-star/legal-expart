@@ -613,7 +613,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 itemBuilder: (_) => statuses.map((v) => PopupMenuItem(value: v, child: Text(v))).toList(),
                 child: Chip(label: Text(status))),
             ]),
-            Text('Customer: ${d['email'] ?? d['customerEmail'] ?? 'Unknown'}'),
+            Text('Customer: ${d['fullName'] ?? d['name'] ?? d['email'] ?? 'Unknown'}'),
+            Text('Mobile: ${d['mobileNumber'] ?? d['phone'] ?? 'Not provided'}'),
+            Text('Email: ${d['email'] ?? d['customerEmail'] ?? 'Not provided'}'),
+            Text('Service: ${d['service'] ?? d['serviceName'] ?? 'Not specified'}'),
+            if ((d['fullAddress'] ?? '').toString().isNotEmpty) Text('Address: ${d['fullAddress']}'),
             if ((d['note'] ?? d['message'] ?? '').toString().isNotEmpty) Text('Details: ${d['note'] ?? d['message']}'),
 
             if (d['uid'] != null) SelectableText('Customer UID: ${d['uid']}'),
