@@ -1093,6 +1093,10 @@ Future<void> requestService(BuildContext context, String service) async {
           title: Text(tr(hindi, 'Need legal assistance?', 'कानूनी सहायता चाहिए?')),
           subtitle: Text(tr(hindi, 'Submit a request and our team will follow up.',
             'रिक्वेस्ट भेजें, हमारी टीम आपसे संपर्क करेगी।')))),
+        const SizedBox(height: 8),
+        const Card(child: ListTile(leading: Icon(Icons.phone),
+          title: Text('Expert Team Contact / विशेषज्ञ टीम संपर्क'),
+          subtitle: SelectableText('9006977016'))),
       ]);
     }),
   );
