@@ -881,7 +881,7 @@ Future<void> requestService(BuildContext context, String service) async {
             TextFormField(controller: note, maxLines: 3,
               decoration: const InputDecoration(labelText: 'Details / आवश्यकता का विवरण', border: OutlineInputBorder())),
             const SizedBox(height: 14),
-            const Text('Upload documents (optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox.shrink(),
             const Text('Upload only documents needed for this service. Files should be accessible only to you and authorized admins.', style: TextStyle(fontSize: 12, color: Colors.black54)),
             const SizedBox(height: 10),
             _documentPickerRow('PAN Card / पैन कार्ड', panFile, () async { final x = await pickDocument(); if (x != null) setDialogState(() => panFile = x); }, () => setDialogState(() => panFile = null)),
