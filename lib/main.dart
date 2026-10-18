@@ -424,6 +424,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     ('Add Service', Icons.add_business_outlined),
     ('Add Offers', Icons.local_offer_outlined),
     ('Customer Information', Icons.people_outline),
+    ('Form Builder', Icons.dynamic_form_outlined),
   ];
 
   Future<void> _setStatus(BuildContext context, String id, String status) async {
@@ -661,6 +662,100 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     )),
   ]);
 
+
+  Future<void> _saveServiceForm({DocumentSnapshot<Map<String, dynamic>>? doc}) async {
+    final data = doc?.data() ?? <String, dynamic>{};
+    final title = TextEditingController(text: (data['title'] ?? '').toString());
+    final targetType = TextEditingController(text: (data['targetType'] ?? 'Service').toString());
+    final targetName = TextEditingController(text: (data['targetName'] ?? '').toString());
+    final fields = TextEditingController(text: ((data['fields'] as List?) ?? const ['Client Name', 'Business Information', 'Client Contact Number', 'Office Address']).join(', '));
+    final documents = TextEditingController(text: ((data['documents'] as List?) ?? const []).join(', '));
+    final key = GlobalKey<FormState>();
+    bool active = data['isActive'] != false;
+    final save = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setStateDialog) => AlertDialog(
+      title: Text(doc == null ? 'Add Form' : 'Edit Form'),
+      content: SizedBox(width: 500, child: Form(key: key, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(controller: title, decoration: const InputDecoration(labelText: 'Form Name (e.g. MSME Registration)'), validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null),
+        TextFormField(controller: targetType, decoration: const InputDecoration(labelText: 'Attach to: Service / Project / Offer'), validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null),
+        TextFormField(controller: targetName, decoration: const InputDecoration(labelText: 'Exact Service / Project / Offer name'), validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null),
+        TextFormField(controller: fields, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Client / business fields (comma separated)')),
+        TextFormField(controller: documents, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Required documents (comma separated)', hintText: 'PAN Card, Aadhaar Card, Voter Card')),
+        SwitchListTile(title: const Text('Active for customers'), value: active, onChanged: (v) => setStateDialog(() => active = v)),
+      ])))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save Form')),
+      ],
+    )));
+    if (save == true) {
+      final payload = <String, dynamic>{
+        'title': title.text.trim(), 'targetType': targetType.text.trim(),
+        'targetName': targetName.text.trim(),
+        'fields': fields.text.split(',').map((v) => v.trim()).where((v) => v.isNotEmpty).toList(),
+        'documents': documents.text.split(',').map((v) => v.trim()).where((v) => v.isNotEmpty).toList(),
+        'isActive': active, 'updatedAt': FieldValue.serverTimestamp(),
+      };
+      try {
+        if (doc == null) {
+          payload['createdAt'] = FieldValue.serverTimestamp();
+          payload['createdBy'] = FirebaseAuth.instance.currentUser?.uid;
+          await FirebaseFirestore.instance.collection('serviceForms').add(payload);
+        } else {
+          await doc.reference.update(payload);
+        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Form saved successfully.')));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed. Check Firestore Rules for serviceForms. $e')));
+      }
+    }
+    title.dispose(); targetType.dispose(); targetName.dispose(); fields.dispose(); documents.dispose();
+  }
+
+  Future<void> _deleteServiceForm(DocumentSnapshot<Map<String, dynamic>> doc) async {
+    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Delete form?'), content: const Text('This form template will be permanently deleted.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+      ],
+    ));
+    if (yes != true) return;
+    try { await doc.reference.delete(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Form deleted.'))); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
+  }
+
+  Widget _formBuilder() => Column(children: [
+    Padding(padding: const EdgeInsets.all(20), child: Row(children: [
+      const Expanded(child: Text('Form Builder', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold))),
+      FilledButton.icon(onPressed: () => _saveServiceForm(), icon: const Icon(Icons.add), label: const Text('Add Form')),
+    ])),
+    const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Align(alignment: Alignment.centerLeft, child: Text('Create a form and assign it to a service, project or offer. Use comma-separated names for fields and required documents.'))),
+    Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('serviceForms').snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('Unable to load forms. Check Firestore Rules for serviceForms.\n${snap.error}')));
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        if (snap.data!.docs.isEmpty) return const Center(child: Text('No forms yet. Press Add Form.'));
+        return ListView(padding: const EdgeInsets.all(16), children: snap.data!.docs.map((doc) {
+          final d = doc.data();
+          return Card(child: ListTile(
+            leading: const Icon(Icons.dynamic_form, color: navy),
+            title: Text((d['title'] ?? 'Form').toString()),
+            subtitle: Text('For: ${d['targetType'] ?? 'Service'} — ${d['targetName'] ?? ''}\nFields: ${((d['fields'] as List?) ?? const []).join(', ')}\nDocuments: ${((d['documents'] as List?) ?? const []).join(', ')}\n${d['isActive'] == false ? 'Inactive' : 'Active'}'),
+            isThreeLine: true,
+            trailing: PopupMenuButton<String>(onSelected: (v) {
+              if (v == 'edit') _saveServiceForm(doc: doc);
+              if (v == 'delete') _deleteServiceForm(doc);
+            }, itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit Form')),
+              PopupMenuItem(value: 'delete', child: Text('Delete Form')),
+            ]),
+          ));
+        }).toList());
+      },
+    )),
+  ]);
+
   Widget _customers() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
     stream: FirebaseFirestore.instance.collection('users').snapshots(),
     builder: (context, snapshot) {
@@ -705,7 +800,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
         const VerticalDivider(width: 1),
         Expanded(child: IndexedStack(index: selected, children: [
-          _dashboard(), _requests(), _catalog(offer: false), _catalog(offer: true), _customers(),
+          _dashboard(), _requests(), _catalog(offer: false), _catalog(offer: true), _customers(), _formBuilder(),
         ])),
       ]),
     );
