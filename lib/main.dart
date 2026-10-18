@@ -416,7 +416,7 @@ class AdminDashboardPage extends StatefulWidget {
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const navy = Color(0xff12345a);
-  static const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+  static const statuses = ['Pending', 'In Review', 'In Progress', 'Completed', 'Cancelled', 'Rejected', 'Payment Refund'];
   int selected = 0;
   static const sections = [
     ('Dashboard', Icons.dashboard_outlined),
