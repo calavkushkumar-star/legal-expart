@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -863,65 +862,6 @@ class _AdminMetric extends StatelessWidget {
   );
 }
 
-class PaymentPage extends StatelessWidget {
-  final String requestId;
-  final String service;
-  final bool hindi;
-  const PaymentPage({super.key, required this.requestId, required this.service, required this.hindi});
-
-  static const upiId = '9006977016-4@ybl';
-  @override
-  Widget build(BuildContext context) {
-    final upiUri = 'upi://pay?pa=$upiId&pn=LAVKUSH%20KUMAR&cu=INR&tn=Legal%20Expart';
-    return Scaffold(
-      appBar: AppBar(title: Text(tr(hindi, 'Payment', 'भुगतान'))),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
-        Container(padding: const EdgeInsets.all(18), color: const Color(0xffeaf7e9),
-          child: Text(tr(hindi, 'After paying, return here and tap Go to Home. Admin will verify your payment.', 'भुगतान करने के बाद यहाँ वापस आएँ और “Go to Home” दबाएँ। Admin आपके भुगतान की जाँच करेगा।'),
-            textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xff246c32)))),
-        const SizedBox(height: 18),
-        Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: const Color(0xff052e4f), borderRadius: BorderRadius.circular(12)),
-          child: Column(children: [
-            Text(service, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-            const SizedBox(height: 8), const Text('PhonePe / UPI', style: TextStyle(color: Colors.white70)),
-          ])),
-        const SizedBox(height: 18),
-        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(children: [
-          const Icon(Icons.account_balance_wallet, color: Color(0xff6739a6), size: 38),
-          const SizedBox(height: 8), const Text('PhonePe', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const Text('SCAN & PAY USING ANY UPI APP'),
-          const SizedBox(height: 12),
-          QrImageView(data: upiUri, version: QrVersions.auto, size: 240, backgroundColor: Colors.white),
-          const SizedBox(height: 8), const SelectableText(upiId, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 8), const Text('Account name: LAVKUSH KUMAR', textAlign: TextAlign.center),
-        ]))),
-        const SizedBox(height: 14),
-        const Text('Note: After completing payment, return to Legal Expart and tap Go to Home. Your payment remains pending until Admin verifies it.', textAlign: TextAlign.center),
-        const SizedBox(height: 14),
-        FilledButton.icon(onPressed: () async {
-          try {
-            await FirebaseFirestore.instance.collection('serviceRequests').doc(requestId).update({
-              'paymentStatus': 'Verification Requested', 'paymentMethod': 'PhonePe UPI',
-              'upiId': upiId, 'paymentVerificationRequestedAt': FieldValue.serverTimestamp(),
-            });
-            if (!context.mounted) return;
-            await showDialog<void>(context: context, builder: (ctx) => AlertDialog(
-              title: Text(tr(hindi, 'Request sent to Admin', 'रिक्वेस्ट Admin को भेज दी गई')),
-              content: Text(tr(hindi, 'Admin will verify your payment. Payment History will show Payment Done only after verification.', 'Admin भुगतान जाँचेगा। Payment History में Payment Done केवल verification के बाद दिखेगा।')),
-              actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
-            ));
-            if (context.mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-          } catch (e) {
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not send verification request: $e')));
-          }
-        }, icon: const Icon(Icons.home_outlined), label: Text(tr(hindi, 'Go to Home', 'होम पर जाएँ'))),
-        const SizedBox(height: 18),
-        const Center(child: Text('Account Team & Expert Team Contact: 9006977016', textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff12345a)))),
-      ]),
-    );
-  }
-}
 
 class DashboardPage extends StatelessWidget {
   final bool hindi;
@@ -947,7 +887,6 @@ class DashboardPage extends StatelessWidget {
 
 
 Future<void> requestService(BuildContext context, String service) async {
-    String? submittedRequestId;
     final formKey = GlobalKey<FormState>();
     final fullName = TextEditingController();
     final mobile = TextEditingController();
@@ -1016,12 +955,8 @@ Future<void> requestService(BuildContext context, String service) async {
                 'fullName': fullName.text.trim(), 'mobileNumber': mobile.text.trim(),
                 'fullAddress': address.text.trim(), 'note': note.text.trim(),
                 'documents': docs, 'status': 'Pending',
-                'paymentStatus': 'Payment Verification Pending',
-                'paymentMethod': 'PhonePe UPI',
-                'upiId': '9006977016-4@ybl',
                 'createdAt': FieldValue.serverTimestamp(),
               });
-              submittedRequestId = refDoc.id;
               if (ctx.mounted) Navigator.pop(ctx, true);
             } catch (e) {
               setDialogState(() { submitting = false; formError = 'Submission failed. Check Firebase Storage setup and Rules. $e'; });
@@ -1030,8 +965,8 @@ Future<void> requestService(BuildContext context, String service) async {
         ],
       )),
     );
-    if (ok == true && context.mounted && submittedRequestId != null) {
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PaymentPage(requestId: submittedRequestId!, service: service, hindi: hindi)));
+    if (ok == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr(hindi, 'Application submitted successfully. This service is free.', 'आवेदन सफलतापूर्वक जमा हुआ। यह सेवा निःशुल्क है।'))));
     }
     fullName.dispose(); mobile.dispose(); address.dispose(); note.dispose();
   }
@@ -1140,7 +1075,7 @@ Future<void> requestService(BuildContext context, String service) async {
                       Text(description,
                         style: const TextStyle(fontSize: 13, color: Colors.black54)),
                       const SizedBox(height: 5),
-                      Text('${tr(hindi, 'Price', 'कीमत')}: ${s.$3}',
+                      Text(tr(hindi, 'Service: Free', 'सेवा: निःशुल्क'),
                         style: const TextStyle(fontSize: 13, color: Color(0xff1268df), fontWeight: FontWeight.w600)),
                     ])),
                     const SizedBox(width: 4),
@@ -1164,8 +1099,7 @@ Future<void> requestService(BuildContext context, String service) async {
                 final d = doc.data();
                 final name = (d['name'] ?? d['title'] ?? 'Service').toString();
                 final description = (d['description'] ?? '').toString();
-                final price = d['price'] == null ? '' : '₹${d['price']}';
-                return Card(child: ListTile(
+                                return Card(child: ListTile(
                   leading: const CircleAvatar(backgroundColor: Color(0xffeaf1fb), child: Icon(Icons.miscellaneous_services, color: Color(0xff12345a))),
                   title: Text(name),
                   subtitle: Text('${description.isEmpty ? 'Available on request' : description}\\nService: Free'),
