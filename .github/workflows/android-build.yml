@@ -20,7 +20,20 @@ jobs:
           channel: stable
           cache: true
       - name: Generate Android platform scaffolding
-        run: flutter create --platforms=android --org com.legalexpart .
+        run: flutter create --platforms=android --org technology.greatindia .
+      - name: Set requested Android application ID
+        shell: bash
+        run: |
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/applicationId "[^"]*"/applicationId "technology.greatindia.Legalexpart"/' android/app/build.gradle
+            sed -i 's/namespace "[^"]*"/namespace "technology.greatindia.Legalexpart"/' android/app/build.gradle
+          elif [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/applicationId = "[^"]*"/applicationId = "technology.greatindia.Legalexpart"/' android/app/build.gradle.kts
+            sed -i 's/namespace = "[^"]*"/namespace = "technology.greatindia.Legalexpart"/' android/app/build.gradle.kts
+          fi
+      - name: Add Firebase Android configuration when provided
+        run: |
+          if [ -f google-services.json ]; then mkdir -p android/app; cp google-services.json android/app/google-services.json; fi
       - name: Render branded app icon
         run: |
           python -m pip install --quiet cairosvg
@@ -72,7 +85,7 @@ jobs:
           channel: stable
           cache: true
       - name: Generate Windows desktop scaffolding
-        run: flutter create --platforms=windows --org com.legalexpart .
+        run: flutter create --platforms=windows --org technology.greatindia .
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze Dart code
