@@ -1,0 +1,32 @@
+{
+  "project_info": {
+    "project_number": "760036617793",
+    "project_id": "legal-expart",
+    "storage_bucket": "legal-expart.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:760036617793:android:9731134752d8ff02a960c0",
+        "android_client_info": {
+          "package_name": "com.legalexpart.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [{"current_key": "AIzaSyBzrEVPxAlOkcWrbUk2VDujMY7P0BXJG_M"}],
+      "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:760036617793:android:d4d4c2e402f593c8a960c0",
+        "android_client_info": {
+          "package_name": "technology.greatindia.Legalexpart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [{"current_key": "AIzaSyBzrEVPxAlOkcWrbUk2VDujMY7P0BXJG_M"}],
+      "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+    }
+  ],
+  "configuration_version": "1"
+}
