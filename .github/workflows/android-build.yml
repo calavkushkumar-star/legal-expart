@@ -31,6 +31,14 @@ jobs:
             sed -i 's/applicationId = "[^"]*"/applicationId = "com.legalexpart.app"/' android/app/build.gradle.kts
             sed -i 's/namespace = "[^"]*"/namespace = "com.legalexpart.app"/' android/app/build.gradle.kts
           fi
+      - name: Fix Android launcher activity package
+        shell: bash
+        run: |
+          # The generated launcher activity must match the application namespace,
+          # otherwise Android may install the APK but fail to launch it.
+          ACTIVITY="$(find android/app/src/main -type f \( -name 'MainActivity.kt' -o -name 'MainActivity.java' \) | head -n 1)"
+          if [ -z "$ACTIVITY" ]; then echo "MainActivity source was not generated"; exit 1; fi
+          sed -i -E 's/^package .*/package com.legalexpart.app/' "$ACTIVITY"
       - name: Add Firebase Android configuration when provided
         run: |
           if [ -f google-services.json ]; then mkdir -p android/app; cp google-services.json android/app/google-services.json; fi
