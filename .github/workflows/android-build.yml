@@ -44,6 +44,22 @@ jobs:
         run: dart run flutter_launcher_icons
       - name: Analyze Dart code
         run: flutter analyze --no-fatal-infos lib
+      - name: Generate a new upload keystore
+        shell: bash
+        run: |
+          mkdir -p signing
+          STORE_PASS="$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)"
+          KEY_PASS="$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)"
+          echo "$STORE_PASS" > signing/keystore-password.txt
+          echo "$KEY_PASS" > signing/key-password.txt
+          keytool -genkeypair -v -keystore signing/legal-expart-upload.jks -storepass "$STORE_PASS" -keypass "$KEY_PASS" -alias legal-expart-upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Legal Expart, OU=Great India Technology, O=Great India Technology, L=Patna, ST=Bihar, C=IN"
+      - name: Upload generated keystore and password files
+        uses: actions/upload-artifact@v4
+        with:
+          name: legal-expart-upload-keystore
+          path: signing/
+          if-no-files-found: error
+          retention-days: 7
       - name: Build debug APK
         run: flutter build apk --debug
       - name: Build release APK
