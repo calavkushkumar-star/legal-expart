@@ -25,11 +25,11 @@ jobs:
         shell: bash
         run: |
           if [ -f android/app/build.gradle ]; then
-            sed -i 's/applicationId "[^"]*"/applicationId "technology.greatindia.Legalexpart"/' android/app/build.gradle
-            sed -i 's/namespace "[^"]*"/namespace "technology.greatindia.Legalexpart"/' android/app/build.gradle
+            sed -i 's/applicationId "[^"]*"/applicationId "com.legalexpart.app"/' android/app/build.gradle
+            sed -i 's/namespace "[^"]*"/namespace "com.legalexpart.app"/' android/app/build.gradle
           elif [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/applicationId = "[^"]*"/applicationId = "technology.greatindia.Legalexpart"/' android/app/build.gradle.kts
-            sed -i 's/namespace = "[^"]*"/namespace = "technology.greatindia.Legalexpart"/' android/app/build.gradle.kts
+            sed -i 's/applicationId = "[^"]*"/applicationId = "com.legalexpart.app"/' android/app/build.gradle.kts
+            sed -i 's/namespace = "[^"]*"/namespace = "com.legalexpart.app"/' android/app/build.gradle.kts
           fi
       - name: Add Firebase Android configuration when provided
         run: |
